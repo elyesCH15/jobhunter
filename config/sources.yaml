@@ -1,0 +1,34 @@
+# Phase 1 sources. Each one is free. Sources needing a key are skipped (not failed)
+# until the key is set in GitHub Secrets.
+#
+# Company job boards (Greenhouse / Lever / Ashby) are the "hidden market": many startups
+# and labs post there first. Add a company by its board slug — the part of the URL after
+# boards.greenhouse.io/, jobs.lever.co/ or jobs.ashbyhq.com/. Wrong slugs don't break the
+# scan: they show as errors on the dashboard's Sources page so you can fix or remove them.
+
+aggregators:
+  adzuna:            # https://developer.adzuna.com — free key (ADZUNA_APP_ID, ADZUNA_APP_KEY)
+    active: true
+    frequency_min: 120
+    countries: [gb, fr, de, nl, be, es, it, ch, at, pl]   # Adzuna has no Tunisia endpoint
+    results_per_query: 50
+  jooble:            # https://jooble.org/api/about — free key (JOOBLE_KEY)
+    active: true
+    frequency_min: 120
+    locations: ["Tunisia", "France", "Germany", "Belgium", "Netherlands", "Switzerland", "Spain", "Remote"]
+  remoteok:          # public JSON feed, no key
+    active: true
+    frequency_min: 120
+  arbeitnow:         # public JSON API, no key (Europe, many English postings)
+    active: true
+    frequency_min: 180
+  remotive:          # public JSON API, no key
+    active: true
+    frequency_min: 180
+
+company_boards:      # no key needed — slugs to verify/extend
+  frequency_min: 240
+  greenhouse: [deepmind, isomorphiclabs, cradlebio, instadeep, recursionpharmaceuticals,
+               planet, pachama, sylvera, mistral, huggingface, anthropic]
+  lever: [owkin, insitro, xai, aqemia]
+  ashby: [cohere, perplexity, latentlabs, profluent]

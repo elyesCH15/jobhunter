@@ -1,0 +1,48 @@
+# Starter filters. The dashboard's Filters page is the main editor; this file seeds the
+# database the first time (scripts/sync_config.py) and is what Git snapshots track.
+#
+# kind: hard → job is dropped (kept in DB, hidden, counted)
+#       soft → score adjusted by `weight` (e.g. +8 or -10)
+# field: title | description | text (title+description) | company | country | region |
+#        remote | contract | seniority | language | salary_min | source
+# operator: contains | not_contains | equals | not_equals | in | not_in | gte | lte
+
+filters:
+  - name: Languages I can apply in
+    kind: hard
+    field: language
+    operator: in
+    value: [en, fr, ar]
+
+  - name: Drop senior roles
+    kind: hard
+    field: seniority
+    operator: not_in
+    value: [senior]
+
+  - name: Drop unpaid
+    kind: hard
+    field: text
+    operator: not_contains
+    value: [unpaid, "non rémunéré", "non-rémunéré", bénévole, volunteer position]
+
+  - name: Prefer remote
+    kind: soft
+    field: remote
+    operator: equals
+    value: remote
+    weight: 5
+
+  - name: Boost Tunisia
+    kind: soft
+    field: region
+    operator: equals
+    value: tunisia
+    weight: 5
+
+  - name: Boost protein / bio terms
+    kind: soft
+    field: text
+    operator: contains
+    value: [protein, alphafold, esm]
+    weight: 6

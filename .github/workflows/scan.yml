@@ -1,0 +1,53 @@
+name: Scan for jobs
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"        # every 2 hours (UTC), off the hour to avoid GitHub's busy :00
+  workflow_dispatch:              # "Run workflow" button in the Actions tab
+    inputs:
+      force:
+        description: "Ignore source frequencies (scan everything now)"
+        type: boolean
+        default: false
+      only:
+        description: "Only sources starting with (e.g. greenhouse, adzuna) — empty = all"
+        required: false
+
+concurrency:
+  group: scan                     # never two scans at once
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Scan
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          JOOBLE_KEY: ${{ secrets.JOOBLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ -n "${{ inputs.only }}" ]; then ARGS="$ARGS --only ${{ inputs.only }}"; fi
+          python -m jh.scan $ARGS
+      - name: Keep summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-summary
+          path: scan_summary.json
+          retention-days: 7
+          if-no-files-found: ignore

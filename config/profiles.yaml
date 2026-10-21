@@ -1,0 +1,91 @@
+# Search profiles. Edit here (then commit) or in the dashboard — both stay in sync.
+# priority: high = x1.0, medium = x0.85, low = x0.7 (multiplier on the fit score)
+
+defaults:
+  seniority: [entry, junior, unknown]          # 'unknown' kept: many postings don't say
+  languages: [en, fr, ar]
+  global_exclude:
+    - senior
+    - lead
+    - principal
+    - staff engineer
+    - director
+    - head of
+    - "5+ years"
+    - "7+ years"
+    - "10+ years"
+    - unpaid
+
+profiles:
+  - id: protein_ml
+    name: Protein / bio ML
+    priority: high
+    titles: [machine learning engineer, ml engineer, research engineer, applied scientist,
+             computational biologist, bioinformatics engineer, ai drug discovery, ml scientist]
+    keywords: [protein language model, protein, esm, alphafold, structure prediction, binding site,
+               drug discovery, computational biology, bioinformatics, biotech, molecular, pytorch,
+               fine-tuning, hpc, genomics, cheminformatics]
+    exclude: [wet lab, wet-lab, clinical trial, pharmaceutical sales, lab technician, medical representative]
+    contracts: [full_time, fixed_term, internship, phd]
+    queries: ["protein machine learning", "computational biology machine learning",
+              "AI drug discovery", "bioinformatics machine learning", "protein language model"]
+
+  - id: climate_ai
+    name: Climate & nature AI
+    priority: high
+    titles: [data scientist, remote sensing analyst, geospatial engineer, geospatial data scientist,
+             sustainability data analyst, carbon analyst, climate data scientist, earth observation]
+    keywords: [remote sensing, satellite, earth observation, gis, geospatial, deforestation,
+               biodiversity, carbon credit, carbon market, mrv, esg, climate risk, climate,
+               google earth engine, sentinel, land use, nature-based]
+    exclude: [sales, business development, fundraising]
+    contracts: [full_time, fixed_term, internship, freelance]
+    queries: ["climate data scientist", "remote sensing machine learning", "geospatial data scientist",
+              "carbon markets data", "earth observation AI"]
+
+  - id: general_ml
+    name: General ML / AI engineer
+    priority: medium
+    titles: [machine learning engineer, ml engineer, ai engineer, data scientist, llm engineer,
+             mlops engineer, nlp engineer, deep learning engineer]
+    keywords: [python, pytorch, tensorflow, llm, rag, transformers, fine-tuning, deployment, docker,
+               mlops, nlp, machine learning, deep learning, langchain, hugging face, streamlit]
+    exclude: [data entry, bi analyst, power bi developer, frontend, front-end, salesforce]
+    contracts: [full_time, fixed_term, freelance]
+    queries: ["machine learning engineer", "AI engineer", "LLM engineer", "data scientist junior",
+              "NLP engineer", "MLOps engineer"]
+
+  - id: genai_cv
+    name: Generative AI / computer vision
+    priority: medium
+    titles: [computer vision engineer, generative ai engineer, deep learning engineer, ml engineer vision]
+    keywords: [diffusion, stable diffusion, controlnet, image generation, generative ai, segmentation,
+               object detection, opencv, gan, computer vision, vision transformer]
+    exclude: [video editor, graphic designer, 3d artist, motion designer]
+    contracts: [full_time, fixed_term, internship, freelance]
+    queries: ["computer vision engineer", "generative AI engineer", "diffusion models engineer",
+              "image generation machine learning"]
+
+  - id: research_hpc
+    name: Research & scientific computing
+    priority: medium
+    titles: [research engineer, research intern, phd, doctoral, scientific computing engineer,
+             hpc engineer, computational scientist, research assistant]
+    keywords: [hpc, supercomputing, slurm, molecular dynamics, simulation, scientific computing,
+               cuda, distributed training, numerical, research, phd, doctoral]
+    exclude: [postdoc, postdoctoral, tenure-track, tenure track, professor, lecturer]
+    contracts: [internship, phd, fixed_term]
+    queries: ["PhD machine learning", "research engineer HPC", "molecular dynamics internship",
+              "scientific computing engineer", "stage M2 machine learning", "thèse apprentissage automatique"]
+
+  - id: mission_driven
+    name: Mission-driven / international orgs
+    priority: medium
+    titles: [data scientist, ai specialist, data consultant, innovation consultant,
+             junior professional officer, research associate, digital innovation officer]
+    keywords: [united nations, undp, unhcr, unicef, unep, world bank, ngo, sdg, humanitarian,
+               development, digital innovation, international organization, fellowship]
+    exclude: [fundraising, administrative assistant, logistics officer, driver]
+    contracts: [full_time, fixed_term, freelance, internship]
+    queries: ["UN data scientist", "humanitarian data", "NGO machine learning",
+              "junior professional officer data", "international organization AI"]
