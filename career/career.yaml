@@ -62,15 +62,16 @@ experiences:
     company: Euranova
     team: Explore pillar — independent research centre
     location: Tunis, Tunisia
-    start: 2026-02          # QUESTION: report says "five-month internship"; CVs say 02/2026 – 09/2026
-    end: 2026-09
+    start: 2026-02
+    end: 2026-07            # 6 months (confirmed) — QUESTION: exact end month?
+    duration_months: 6
     context:
       en: >-
-        Five-month graduation research project in Euranova's research centre. Compute on MareNostrum 5 (Barcelona
+        Six-month graduation research project in Euranova's research centre. Compute on MareNostrum 5 (Barcelona
         Supercomputing Center, NVIDIA H100, EuroHPC allocation ehpc795); interdisciplinary supervision with a
         biology consultant. Framed as Design Science Research.
       fr: >-
-        Projet de fin d'études de cinq mois au centre de recherche d'Euranova. Calcul sur MareNostrum 5 (Barcelona
+        Projet de fin d'études de six mois au centre de recherche d'Euranova. Calcul sur MareNostrum 5 (Barcelona
         Supercomputing Center, NVIDIA H100, allocation EuroHPC) ; encadrement interdisciplinaire avec un consultant
         en biologie.
     report: "Optimisation of Protein Language Models for Cryptic Binding Site Prediction (≈60 pages)"
@@ -245,7 +246,7 @@ experiences:
   - id: orion
     status: confirmed
     title: {en: Computer Vision Intern, fr: Stagiaire en Vision par Ordinateur}
-    company: Orion.IA          # CVs say "Orion AI" — which name do you want printed?
+    company: Orion AI
     location: Tunis, Tunisia
     start: 2025-06
     end: 2025-09               # QUESTION: CVs say 06–09/2025, agreement says 01/06–31/08, report says June–July
@@ -289,28 +290,28 @@ experiences:
         skills: [streamlit, plotly, dashboards]
       # --- from the Orion.IA report ---
       - id: ori_batch_runner
-        status: to_confirm
+        status: confirmed
         en: >-
           Built a parallel batch-testing pipeline that ran the four-stage staging pipeline on real listing photos
           scraped from French real-estate sites, logging every intermediate output and per-stage timing into a
           ratable results database.
         skills: [python, pandas, web_scraping, data_pipelines, experiment_tracking]
       - id: ori_hypotheses
-        status: to_confirm
+        status: confirmed
         en: >-
           Turned failure analysis into testable hypotheses and ran controlled experiments: protecting detected
           windows and doors beat masking the rest of the room, and SDXL was retained over Stable Diffusion 1.x for
           realism.
         skills: [experimental_design, stable_diffusion, inpainting, segmentation]
       - id: ori_root_causes
-        status: to_confirm
+        status: confirmed
         metrics: {empty_masks_pct: 8, bad_labels_pct: 22, prompt_words: 258}
         en: >-
           Traced unfaithful generations to cheap-to-fix upstream causes: empty masks in 8% of images, malformed
           room labels in 22% of rows, and design prompts averaging 258 words against a 77-token text-encoder limit.
         skills: [error_analysis, prompt_engineering, llm]
       - id: ori_latency
-        status: to_confirm
+        status: confirmed
         en: >-
           Profiled the pipeline (67.6 s per image on average) and showed the diffusion step accounts for two thirds
           of processing time, guiding latency work.
@@ -441,12 +442,21 @@ projects:
 education:
   - id: insat
     status: confirmed
-    degree:
-      en: National Engineering Degree in Networks & Telecommunications — Specialization in Artificial Intelligence & Computer Vision
-      fr: Diplôme national d'ingénieur en Réseaux & Télécommunications — Spécialisation Intelligence Artificielle & Vision par ordinateur
-      # QUESTION: your CVs use 4 variants (specialization / option / minor / "Spécialisation IA"). Which is official?
+    degree_variants:          # same degree, worded for the job — the generator picks one
+      - id: ml_cv
+        profiles: [general_ml, genai_cv, protein_ml, climate_ai, research_hpc]
+        default: true
+        en: Engineering Degree in Networks & Telecommunications — Minor in Computer Vision & AI
+        fr: Diplôme d'ingénieur en Réseaux & Télécommunications — Mineure Vision par ordinateur & IA
+      - id: software
+        profiles: [general_ml]
+        en: Engineering Degree in Computer Networks & Telecommunications (software, data & cloud track)
+        fr: Diplôme d'ingénieur en Réseaux Informatiques & Télécommunications (parcours logiciel, données & cloud)
+      - id: official
+        en: National Engineering Diploma in Applied Sciences and Technology — Networks & Telecommunications
+        fr: Diplôme national d'ingénieur en sciences appliquées et technologie — Réseaux & Télécommunications
     school: {en: "INSAT (National Institute of Applied Science and Technology), Tunis", fr: "INSAT (Institut National des Sciences Appliquées et de Technologie), Tunis"}
-    start: 2021            # QUESTION: CVs say 2021; agreement says first enrolment 2020 (MPI year?)
+    start: 2020
     end: 2026
     # Coursework: INSAT plan d'études (2022-23 edition), path MPI → RT2 → RT3 → RT4 → RT5, option
     # "Image, Vision et apprentissage". Grouped by theme; `cv: true` = shown on CVs by default.
@@ -538,124 +548,125 @@ activities:
 
 # ---------------------------------------------------------------------------------------------
 # Skills. source: work | project | coursework | self_taught (several allowed).
-# used_in = entries that show it (optional). level = null → you set it (1 basic … 5 expert).
+# used_in = entries that show it (optional). level: 1 basic · 2 working · 3 solid · 4 strong · 5 expert
+# Levels are PROPOSED by Claude — correct any that feel off.
 skills:
   # Programming
-  - {id: python, name: Python, category: programming, source: [work, project, coursework], level: null}
-  - {id: sql, name: SQL, category: programming, source: [work, coursework], level: null}
-  - {id: java, name: Java, category: programming, source: [coursework], level: null}
-  - {id: c, name: C, category: programming, source: [coursework], level: null}
-  - {id: cpp, name: C++, aliases: [C plus plus], category: programming, source: [coursework], level: null}
-  - {id: bash, name: Bash, aliases: [shell scripting], category: programming, source: [work], level: null}
-  - {id: git, name: Git, category: tools, source: [work, project], level: null}
-  - {id: linux, name: Linux, category: tools, source: [work], level: null}
-  - {id: latex, name: LaTeX, category: tools, source: [work], level: null}
+  - {id: python, name: Python, category: programming, source: [work, project, coursework], level: 5}
+  - {id: sql, name: SQL, category: programming, source: [work, coursework], level: 3}
+  - {id: java, name: Java, category: programming, source: [coursework, project], level: 2}
+  - {id: c, name: C, category: programming, source: [coursework, project], level: 2}
+  - {id: cpp, name: C++, aliases: [C plus plus], category: programming, source: [coursework, project], level: 2}
+  - {id: bash, name: Bash, aliases: [shell scripting], category: programming, source: [work], level: 3}
+  - {id: git, name: Git, category: tools, source: [work, project], level: 3}
+  - {id: linux, name: Linux, category: tools, source: [work], level: 4}
+  - {id: latex, name: LaTeX, category: tools, source: [work], level: 4}
   # ML / DL
-  - {id: pytorch, name: PyTorch, category: ml, source: [work, project], level: null}
-  - {id: tensorflow, name: TensorFlow, category: ml, source: [coursework], level: null}
-  - {id: sklearn, name: scikit-learn, category: ml, source: [coursework, project], level: null}
-  - {id: huggingface, name: Hugging Face (Transformers, PEFT, Diffusers), aliases: [transformers, peft, diffusers], category: ml, source: [work], level: null}
-  - {id: fine_tuning, name: Fine-tuning large pretrained models, aliases: [model adaptation], category: ml, source: [work], level: null}
-  - {id: lora, name: LoRA / QLoRA, aliases: [parameter-efficient fine-tuning, PEFT], category: ml, source: [work], level: null}
-  - {id: transfer_learning, name: Transfer learning, category: ml, source: [work], level: null}
-  - {id: optuna, name: Optuna, category: ml, source: [work], level: null}
-  - {id: hyperparameter_tuning, name: Hyperparameter optimisation, aliases: [HPO], category: ml, source: [work], level: null}
-  - {id: cross_validation, name: Cross-validation, category: ml, source: [work, coursework], level: null}
-  - {id: evaluation, name: Model evaluation & metrics design, aliases: [AUPRC, MCC, IoU, benchmarking], category: ml, source: [work, project], level: null}
-  - {id: benchmarking, name: Benchmarking, category: ml, source: [work], level: null}
-  - {id: interpretability, name: Mechanistic interpretability, aliases: [explainability, XAI], category: ml, source: [work], level: null}
-  - {id: sparse_autoencoders, name: Sparse autoencoders, aliases: [SAE], category: ml, source: [work], level: null}
-  - {id: data_leakage, name: Data leakage detection, category: ml, source: [work], level: null}
-  - {id: experimental_design, name: Experimental design & hypothesis testing, category: research, source: [work, project], level: null}
-  - {id: distributed_training, name: Distributed training, category: ml, source: [work], level: null}
+  - {id: pytorch, name: PyTorch, category: ml, source: [work, project], level: 5}
+  - {id: tensorflow, name: TensorFlow, category: ml, source: [coursework, project], level: 2}
+  - {id: sklearn, name: scikit-learn, category: ml, source: [coursework, project], level: 3}
+  - {id: huggingface, name: Hugging Face (Transformers, PEFT, Diffusers), aliases: [transformers, peft, diffusers], category: ml, source: [work], level: 4}
+  - {id: fine_tuning, name: Fine-tuning large pretrained models, aliases: [model adaptation], category: ml, source: [work], level: 5}
+  - {id: lora, name: LoRA / QLoRA, aliases: [parameter-efficient fine-tuning, PEFT], category: ml, source: [work], level: 5}
+  - {id: transfer_learning, name: Transfer learning, category: ml, source: [work], level: 4}
+  - {id: optuna, name: Optuna, category: ml, source: [work], level: 4}
+  - {id: hyperparameter_tuning, name: Hyperparameter optimisation, aliases: [HPO], category: ml, source: [work], level: 4}
+  - {id: cross_validation, name: Cross-validation, category: ml, source: [work, coursework], level: 4}
+  - {id: evaluation, name: Model evaluation & metrics design, aliases: [AUPRC, MCC, IoU, benchmarking], category: ml, source: [work, project], level: 4}
+  - {id: benchmarking, name: Benchmarking, category: ml, source: [work], level: 4}
+  - {id: interpretability, name: Mechanistic interpretability, aliases: [explainability, XAI], category: ml, source: [work], level: 4}
+  - {id: sparse_autoencoders, name: Sparse autoencoders, aliases: [SAE], category: ml, source: [work], level: 4}
+  - {id: data_leakage, name: Data leakage detection, category: ml, source: [work], level: 4}
+  - {id: experimental_design, name: Experimental design & hypothesis testing, category: research, source: [work, project], level: 4}
+  - {id: distributed_training, name: Distributed training, category: ml, source: [work], level: 3}
   # Bio
-  - {id: esm2, name: ESM2, category: bio, source: [work], level: null}
-  - {id: protein_lm, name: Protein language models, aliases: [PLM, pLM, protein foundation models], category: bio, source: [work], level: null}
-  - {id: binding_sites, name: Protein–ligand binding site prediction, aliases: [drug discovery, druggability, pocket prediction], category: bio, source: [work], level: null}
-  - {id: protein_structure, name: Protein structure & conformational change, category: bio, source: [work], level: null}
-  - {id: mmseqs2, name: MMseqs2 sequence clustering, category: bio, source: [work], level: null}
+  - {id: esm2, name: ESM2, category: bio, source: [work], level: 5}
+  - {id: protein_lm, name: Protein language models, aliases: [PLM, pLM, protein foundation models], category: bio, source: [work], level: 5}
+  - {id: binding_sites, name: Protein–ligand binding site prediction, aliases: [drug discovery, druggability, pocket prediction], category: bio, source: [work], level: 4}
+  - {id: protein_structure, name: Protein structure & conformational change, category: bio, source: [work], level: 3}
+  - {id: mmseqs2, name: MMseqs2 sequence clustering, category: bio, source: [work], level: 3}
   # HPC
-  - {id: hpc, name: HPC clusters (MareNostrum 5, EuroHPC), aliases: [supercomputing, high-performance computing], category: hpc, source: [work], level: null}
-  - {id: slurm, name: SLURM, category: hpc, source: [work], level: null}
-  - {id: multi_gpu, name: Multi-GPU training (H100), aliases: [GPU clusters], category: hpc, source: [work], level: null}
+  - {id: hpc, name: HPC clusters (MareNostrum 5, EuroHPC), aliases: [supercomputing, high-performance computing], category: hpc, source: [work], level: 4}
+  - {id: slurm, name: SLURM, category: hpc, source: [work], level: 4}
+  - {id: multi_gpu, name: Multi-GPU training (H100), aliases: [GPU clusters], category: hpc, source: [work], level: 4}
   # Computer vision / generative
-  - {id: opencv, name: OpenCV, category: cv, source: [coursework], level: null}
-  - {id: yolov8, name: YOLOv8, aliases: [YOLO, object detection], category: cv, source: [coursework], level: null}
-  - {id: segmentation, name: Image segmentation, aliases: [semantic segmentation], category: cv, source: [work, project], level: null}
-  - {id: sam, name: SAM (Segment Anything), category: cv, source: [work], level: null}
-  - {id: segformer, name: SegFormer, category: cv, source: [work], level: null}
-  - {id: detectron2, name: Detectron2, category: cv, source: [work], level: null}
-  - {id: unet, name: U-Net, category: cv, source: [project], level: null}
-  - {id: stable_diffusion, name: Stable Diffusion / SDXL, aliases: [diffusion models, image generation], category: genai, source: [work], level: null}
-  - {id: diffusion_models, name: Diffusion models, category: genai, source: [work], level: null}
-  - {id: inpainting, name: Inpainting & Differential Diffusion, category: genai, source: [work], level: null}
+  - {id: opencv, name: OpenCV, category: cv, source: [coursework, project], level: 3}
+  - {id: yolov8, name: YOLOv8, aliases: [YOLO, object detection], category: cv, source: [coursework, project], level: 2}
+  - {id: segmentation, name: Image segmentation, aliases: [semantic segmentation], category: cv, source: [work, project], level: 3}
+  - {id: sam, name: SAM (Segment Anything), category: cv, source: [work], level: 3}
+  - {id: segformer, name: SegFormer, category: cv, source: [work], level: 3}
+  - {id: detectron2, name: Detectron2, category: cv, source: [work], level: 2}
+  - {id: unet, name: U-Net, category: cv, source: [project], level: 3}
+  - {id: stable_diffusion, name: Stable Diffusion / SDXL, aliases: [diffusion models, image generation], category: genai, source: [work], level: 3}
+  - {id: diffusion_models, name: Diffusion models, category: genai, source: [work], level: 3}
+  - {id: inpainting, name: Inpainting & Differential Diffusion, category: genai, source: [work], level: 3}
   # LLM / NLP
-  - {id: llm, name: LLMs, aliases: [large language models], category: nlp, source: [project, work], level: null}
-  - {id: rag, name: RAG, aliases: [retrieval-augmented generation], category: nlp, source: [project], level: null}
-  - {id: bm25, name: BM25 retrieval, aliases: [information retrieval], category: nlp, source: [project], level: null}
-  - {id: llm_as_judge, name: LLM-as-judge evaluation, category: nlp, source: [project], level: null}
-  - {id: prompt_engineering, name: Prompt design, aliases: [prompt engineering], category: nlp, source: [project, work], level: null}
+  - {id: llm, name: LLMs, aliases: [large language models], category: nlp, source: [project, work], level: 3}
+  - {id: rag, name: RAG, aliases: [retrieval-augmented generation], category: nlp, source: [project], level: 4}
+  - {id: bm25, name: BM25 retrieval, aliases: [information retrieval], category: nlp, source: [project], level: 3}
+  - {id: llm_as_judge, name: LLM-as-judge evaluation, category: nlp, source: [project], level: 3}
+  - {id: prompt_engineering, name: Prompt design, aliases: [prompt engineering], category: nlp, source: [project, work], level: 3}
   # Geospatial / climate
-  - {id: geospatial, name: Geospatial analysis, aliases: [GIS], category: geo, source: [project], level: null}
-  - {id: rasterio, name: rasterio, category: geo, source: [project], level: null}
-  - {id: gdal, name: GDAL, category: geo, source: [project], level: null}
-  - {id: shapely, name: Shapely, category: geo, source: [project], level: null}
-  - {id: openstreetmap, name: OpenStreetMap, category: geo, source: [project], level: null}
-  - {id: remote_sensing, name: Satellite imagery / remote sensing, aliases: [earth observation], category: geo, source: [project], level: null}
-  - {id: deforestation, name: Deforestation & fragmentation metrics, category: domain, source: [project], level: null}
-  - {id: biodiversity, name: Biodiversity / conservation context, category: domain, source: [project], level: null}
-  - {id: carbon_markets, name: Carbon markets & integrity standards (VCMI, ICVCM, SBTi), category: domain, source: [project], level: null}
+  - {id: geospatial, name: Geospatial analysis, aliases: [GIS], category: geo, source: [project], level: 3}
+  - {id: rasterio, name: rasterio, category: geo, source: [project], level: 3}
+  - {id: gdal, name: GDAL, category: geo, source: [project], level: 2}
+  - {id: shapely, name: Shapely, category: geo, source: [project], level: 3}
+  - {id: openstreetmap, name: OpenStreetMap, category: geo, source: [project], level: 2}
+  - {id: remote_sensing, name: Satellite imagery / remote sensing, aliases: [earth observation], category: geo, source: [project], level: 3}
+  - {id: deforestation, name: Deforestation & fragmentation metrics, category: domain, source: [project], level: 3}
+  - {id: biodiversity, name: Biodiversity / conservation context, category: domain, source: [project], level: 2}
+  - {id: carbon_markets, name: Carbon markets & integrity standards (VCMI, ICVCM, SBTi), category: domain, source: [project], level: 3}
   # Data / MLOps
-  - {id: pandas, name: Pandas, category: data, source: [work, project], level: null}
-  - {id: numpy, name: NumPy / SciPy, category: data, source: [work, project], level: null}
-  - {id: spark, name: Spark, category: data, source: [coursework], level: null, status: to_confirm}
-  - {id: airflow, name: Airflow, category: data, source: [coursework], level: null, status: to_confirm}   # not in the study plan — where from?
-  - {id: wandb, name: Weights & Biases, category: mlops, source: [work], level: null}
-  - {id: streamlit, name: Streamlit, category: mlops, source: [work, project], level: null}
-  - {id: plotly, name: Plotly, category: data, source: [work], level: null}
-  - {id: matplotlib, name: Matplotlib, category: data, source: [work, project], level: null}
-  - {id: statistics, name: Statistics & sensitivity analysis, category: data, source: [project, coursework], level: null}
-  - {id: databases, name: Relational databases, category: data, source: [work, coursework], level: null}
-  - {id: data_cleaning, name: Data cleaning & validation, category: data, source: [work], level: null}
-  - {id: web_scraping, name: Web scraping, category: data, source: [work], level: null}
-  - {id: github_actions, name: GitHub Actions (CI / scheduled jobs), category: mlops, source: [project], level: null}
-  - {id: supabase, name: Supabase / PostgreSQL, category: data, source: [project], level: null}
+  - {id: pandas, name: Pandas, category: data, source: [work, project], level: 4}
+  - {id: numpy, name: NumPy / SciPy, category: data, source: [work, project], level: 4}
+  - {id: spark, name: Spark, category: data, source: [coursework, project], level: 2}
+  - {id: airflow, name: Airflow, category: data, source: [coursework, project], level: 2}
+  - {id: wandb, name: Weights & Biases, category: mlops, source: [work], level: 2}
+  - {id: streamlit, name: Streamlit, category: mlops, source: [work, project], level: 4}
+  - {id: plotly, name: Plotly, category: data, source: [work], level: 3}
+  - {id: matplotlib, name: Matplotlib, category: data, source: [work, project], level: 4}
+  - {id: statistics, name: Statistics & sensitivity analysis, category: data, source: [project, coursework], level: 3}
+  - {id: databases, name: Relational databases, category: data, source: [work, coursework], level: 3}
+  - {id: data_cleaning, name: Data cleaning & validation, category: data, source: [work], level: 3}
+  - {id: web_scraping, name: Web scraping, category: data, source: [work], level: 3}
+  - {id: github_actions, name: GitHub Actions (CI / scheduled jobs), category: mlops, source: [project], level: 3}
+  - {id: supabase, name: Supabase / PostgreSQL, category: data, source: [project], level: 3}
   # Communication / research
-  - {id: scientific_writing, name: Scientific & technical writing, category: soft, source: [work], level: null}
-  - {id: presentation, name: Presenting results to a jury / stakeholders, category: soft, source: [work], level: null}
-  - {id: research_reproduction, name: Reproducing & auditing published results, category: research, source: [work, project], level: null}
+  - {id: scientific_writing, name: Scientific & technical writing, category: soft, source: [work], level: 4}
+  - {id: presentation, name: Presenting results to a jury / stakeholders, category: soft, source: [work], level: 3}
+  - {id: research_reproduction, name: Reproducing & auditing published results, category: research, source: [work, project], level: 4}
   # Added from the Euranova report and the INSAT study plan
-  - {id: mixed_precision, name: Mixed-precision training (bfloat16), category: ml, source: [work], level: null}
-  - {id: gpu_memory_optimisation, name: GPU memory optimisation (gradient checkpointing, SDPA), category: ml, source: [work], level: null}
-  - {id: class_imbalance, name: Class-imbalance handling (weighted loss, AUPRC), category: ml, source: [work], level: null}
-  - {id: probing, name: Linear probing of representations, category: ml, source: [work], level: null}
-  - {id: ablation_studies, name: Ablation studies, category: research, source: [work], level: null}
-  - {id: reproducibility, name: Reproducible research pipelines, category: research, source: [work], level: null}
-  - {id: debugging, name: Debugging training & search pipelines, category: ml, source: [work], level: null}
-  - {id: code_review, name: Reading & auditing research code, category: research, source: [work], level: null}
-  - {id: graph_ml, name: Machine learning on graphs, category: ml, source: [coursework], level: null}
-  - {id: object_detection, name: Object detection & recognition, category: cv, source: [coursework], level: null}
-  - {id: hadoop, name: Hadoop, category: data, source: [coursework], level: null, status: to_confirm}
-  - {id: bi, name: Business Intelligence, category: data, source: [coursework], level: null}
-  - {id: stochastic_processes, name: Stochastic processes & queueing theory, category: maths, source: [coursework], level: null}
-  - {id: optimisation, name: Mathematical optimisation & operations research, category: maths, source: [coursework], level: null}
-  - {id: graph_theory, name: Graph theory, category: maths, source: [coursework], level: null}
-  - {id: linear_algebra, name: Linear algebra & numerical analysis, category: maths, source: [coursework], level: null}
-  - {id: information_theory, name: Information theory & coding, category: maths, source: [coursework], level: null}
-  - {id: signal_processing, name: Signal processing, category: maths, source: [coursework], level: null}
-  - {id: java_ee, name: Java EE, category: programming, source: [coursework], level: null}
-  - {id: web_dev, name: Web development, category: programming, source: [coursework], level: null}
-  - {id: uml, name: Software design (UML), category: programming, source: [coursework], level: null}
-  - {id: agile, name: Agile methods, category: soft, source: [coursework], level: null}
-  - {id: distributed_systems, name: Distributed systems, category: programming, source: [coursework], level: null}
-  - {id: microservices, name: Microservices architecture, category: programming, source: [coursework], level: null}
-  - {id: devops, name: DevOps, category: mlops, source: [coursework], level: null}
-  - {id: docker, name: Docker, category: mlops, source: [coursework], level: null, status: to_confirm}
-  - {id: ci_cd, name: CI/CD, category: mlops, source: [coursework, project], level: null}
-  - {id: cloud, name: Cloud computing, category: mlops, source: [coursework], level: null}
-  - {id: virtualisation, name: Virtualisation, category: mlops, source: [coursework], level: null}
-  - {id: networking, name: Computer networking, category: networks, source: [coursework], level: null}
-  - {id: tcp_ip, name: TCP/IP, category: networks, source: [coursework], level: null}
-  - {id: network_security, name: Network security, category: networks, source: [coursework], level: null}
-  - {id: iot, name: IoT protocols & devices, category: networks, source: [coursework], level: null}
-  - {id: telecom, name: Telecommunications & digital transmission, category: networks, source: [coursework], level: null}
+  - {id: mixed_precision, name: Mixed-precision training (bfloat16), category: ml, source: [work], level: 4}
+  - {id: gpu_memory_optimisation, name: GPU memory optimisation (gradient checkpointing, SDPA), category: ml, source: [work], level: 4}
+  - {id: class_imbalance, name: Class-imbalance handling (weighted loss, AUPRC), category: ml, source: [work], level: 4}
+  - {id: probing, name: Linear probing of representations, category: ml, source: [work], level: 3}
+  - {id: ablation_studies, name: Ablation studies, category: research, source: [work], level: 3}
+  - {id: reproducibility, name: Reproducible research pipelines, category: research, source: [work], level: 3}
+  - {id: debugging, name: Debugging training & search pipelines, category: ml, source: [work], level: 3}
+  - {id: code_review, name: Reading & auditing research code, category: research, source: [work], level: 3}
+  - {id: graph_ml, name: Machine learning on graphs, category: ml, source: [coursework], level: 2}
+  - {id: object_detection, name: Object detection & recognition, category: cv, source: [coursework], level: 2}
+  - {id: hadoop, name: Hadoop, category: data, source: [coursework, project], level: 2}
+  - {id: bi, name: Business Intelligence, category: data, source: [coursework], level: 2}
+  - {id: stochastic_processes, name: Stochastic processes & queueing theory, category: maths, source: [coursework], level: 2}
+  - {id: optimisation, name: Mathematical optimisation & operations research, category: maths, source: [coursework], level: 2}
+  - {id: graph_theory, name: Graph theory, category: maths, source: [coursework], level: 2}
+  - {id: linear_algebra, name: Linear algebra & numerical analysis, category: maths, source: [coursework], level: 2}
+  - {id: information_theory, name: Information theory & coding, category: maths, source: [coursework], level: 2}
+  - {id: signal_processing, name: Signal processing, category: maths, source: [coursework], level: 2}
+  - {id: java_ee, name: Java EE, category: programming, source: [coursework], level: 2}
+  - {id: web_dev, name: Web development, category: programming, source: [coursework], level: 2}
+  - {id: uml, name: Software design (UML), category: programming, source: [coursework], level: 2}
+  - {id: agile, name: Agile methods, category: soft, source: [coursework], level: 2}
+  - {id: distributed_systems, name: Distributed systems, category: programming, source: [coursework], level: 2}
+  - {id: microservices, name: Microservices architecture, category: programming, source: [coursework], level: 2}
+  - {id: devops, name: DevOps, category: mlops, source: [coursework], level: 2}
+  - {id: docker, name: Docker, category: mlops, source: [coursework, project], level: 2}
+  - {id: ci_cd, name: CI/CD, category: mlops, source: [coursework, project], level: 2}
+  - {id: cloud, name: Cloud computing, category: mlops, source: [coursework], level: 2}
+  - {id: virtualisation, name: Virtualisation, category: mlops, source: [coursework], level: 2}
+  - {id: networking, name: Computer networking, category: networks, source: [coursework], level: 2}
+  - {id: tcp_ip, name: TCP/IP, category: networks, source: [coursework], level: 2}
+  - {id: network_security, name: Network security, category: networks, source: [coursework], level: 2}
+  - {id: iot, name: IoT protocols & devices, category: networks, source: [coursework], level: 2}
+  - {id: telecom, name: Telecommunications & digital transmission, category: networks, source: [coursework], level: 2}
