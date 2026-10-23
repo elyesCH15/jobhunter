@@ -1,0 +1,661 @@
+# Career database — DRAFT v0.1 (2026-10-23)
+# Built from: 6 CV versions (EN/FR, AI engineer, ICSM/HPC), the Euranova graduation report, the Orion.IA report,
+# the internship agreement, the INSAT study plan (MPI→RT5),
+# and what Elyes has described in past conversations (Euranova project, RAG and Kibale projects, TIMUN).
+#
+# Conventions
+#   id         stable identifier, used by the editor and per-job CVs
+#   status     confirmed  = appears on a CV you wrote or in your reports
+#              to_confirm = drafted from conversations or inferred — check it
+#   text.en / text.fr      bullet text in each language (missing fr = to be translated)
+#   skills     skill ids this entry demonstrates (links to the skills section)
+#   profiles   which search profiles it is most relevant to
+#              protein_ml · climate_ai · general_ml · genai_cv · research_hpc · mission_driven
+#   default    true = on in the base CV; the editor can toggle any entry per job
+#   level      skills only, 1–5, used for matching, never printed. null = you fill it in.
+
+# ---------------------------------------------------------------------------------------------
+headlines:            # title under your name — chosen per job
+  - id: ml_engineer
+    en: AI / Machine Learning Engineer
+    fr: Ingénieur IA / Machine Learning
+    profiles: [general_ml, genai_cv, protein_ml, climate_ai]
+  - id: hpc_molecular
+    en: AI Engineer — High-Performance Computing & Molecular Modelling
+    fr: Ingénieur IA — Calcul scientifique haute performance & modélisation moléculaire
+    profiles: [research_hpc, protein_ml]
+
+summaries:
+  - id: sum_general
+    profiles: [general_ml, genai_cv]
+    default: true
+    en: >-
+      AI / Machine Learning Engineer with a background in deep learning, generative AI and computer vision.
+      Experienced in fine-tuning large pretrained models, building RAG systems, designing training and
+      evaluation pipelines in PyTorch, and running experiments on GPU clusters. Focused on rigorous evaluation
+      and results that hold up against independent evidence.
+    fr: >-
+      Ingénieur IA / Machine Learning spécialisé en deep learning, IA générative et vision par ordinateur.
+      Expérience en fine-tuning de grands modèles pré-entraînés, conception de systèmes RAG, développement de
+      pipelines d'entraînement et d'évaluation en PyTorch et expérimentation sur clusters GPU. Attaché à une
+      évaluation rigoureuse et à des résultats confirmés par des sources indépendantes.
+  - id: sum_hpc_research
+    profiles: [research_hpc, protein_ml]
+    fr: >-
+      Ingénieur (Bac+5) en Réseaux & Télécommunications, spécialisé en intelligence artificielle, avec une
+      expérience de recherche à l'interface entre le calcul et les sciences du vivant : prédiction de sites de
+      liaison protéine–ligand à l'échelle du résidu sur le supercalculateur MareNostrum 5 (allocation EuroHPC).
+      Habitué aux simulations longues sur centres HPC, à l'analyse de grands volumes de données en Python et à la
+      confrontation rigoureuse des résultats avec la littérature.
+    en: >-
+      Engineer (5-year degree) in Networks & Telecommunications specialised in AI, with research experience at the
+      interface of computing and life sciences: residue-level protein–ligand binding site prediction on the
+      MareNostrum 5 supercomputer (EuroHPC allocation). Used to long-running jobs on HPC centres, large-scale data
+      analysis in Python and checking results rigorously against the literature.
+
+# ---------------------------------------------------------------------------------------------
+experiences:
+
+  - id: euranova
+    status: confirmed
+    title: {en: AI Research Intern (Graduation Project), fr: Stagiaire Recherche en IA (Projet de fin d'études)}
+    company: Euranova
+    team: Explore pillar — independent research centre
+    location: Tunis, Tunisia
+    start: 2026-02          # QUESTION: report says "five-month internship"; CVs say 02/2026 – 09/2026
+    end: 2026-09
+    context:
+      en: >-
+        Five-month graduation research project in Euranova's research centre. Compute on MareNostrum 5 (Barcelona
+        Supercomputing Center, NVIDIA H100, EuroHPC allocation ehpc795); interdisciplinary supervision with a
+        biology consultant. Framed as Design Science Research.
+      fr: >-
+        Projet de fin d'études de cinq mois au centre de recherche d'Euranova. Calcul sur MareNostrum 5 (Barcelona
+        Supercomputing Center, NVIDIA H100, allocation EuroHPC) ; encadrement interdisciplinaire avec un consultant
+        en biologie.
+    report: "Optimisation of Protein Language Models for Cryptic Binding Site Prediction (≈60 pages)"
+    profiles: [protein_ml, research_hpc, general_ml]
+    bullets:
+      # ---- headline / framing ----
+      - id: eur_finetune
+        status: confirmed
+        default: true
+        en: >-
+          Fine-tuned ESM2-15B, a large language model trained on protein sequences, to predict where drug
+          molecules can attach to proteins, helping identify new drug targets.
+        fr: >-
+          Fine-tuning d'ESM2-15B, un grand modèle de langage entraîné sur des séquences protéiques, pour prédire
+          les sites où des molécules médicamenteuses peuvent se fixer sur les protéines, afin d'aider à identifier
+          de nouvelles cibles thérapeutiques.
+        skills: [esm2, protein_lm, fine_tuning, lora, pytorch, huggingface, binding_sites]
+      - id: eur_finetune_technical
+        status: confirmed
+        en: >-
+          Built a sequence-only predictor of cryptic protein–ligand binding sites (pockets hidden in a protein's
+          resting structure, missed by structure-based methods) on top of ESM2-15B, the largest protein language
+          model (15B parameters).
+        fr: >-
+          Développement d'un prédicteur de sites de liaison cryptiques protéine–ligand (poches invisibles dans la
+          structure au repos, manquées par les méthodes structurales) à partir de la seule séquence, sur la base
+          d'ESM2-15B (15 milliards de paramètres).
+        skills: [esm2, protein_lm, binding_sites, protein_structure]
+      # ---- results ----
+      - id: eur_sota
+        status: confirmed
+        default: true
+        metrics: {auprc_from: 0.36, auprc_to: 0.488, relative: "+35%", mcc_from: 0.39, mcc_to: 0.47}
+        en: >-
+          Raised the sequence-only state of the art on the CryptoBench benchmark from 0.36 to 0.488 AUPRC (+35%),
+          a ceiling confirmed by two independent architectures converging on the same score.
+        fr: >-
+          Amélioration de l'état de l'art (méthodes basées sur la séquence) sur le benchmark CryptoBench : AUPRC de
+          0,36 à 0,488 (+35 %), plafond confirmé par deux architectures indépendantes atteignant le même score.
+        skills: [evaluation, benchmarking, pytorch]
+      - id: eur_zero_shot
+        status: confirmed
+        metrics: {zero_shot_auprc: 0.435, gain_vs_sota: "+21%"}
+        en: >-
+          Designed a staged transfer strategy (general binding on 50,000 BioLiP proteins, then cryptic sites):
+          the model beat the published baseline zero-shot, before seeing any cryptic training example
+          (AUPRC 0.435 vs 0.36).
+        fr: >-
+          Conception d'une stratégie de transfert en deux temps (liaison générale sur 50 000 protéines BioLiP, puis
+          sites cryptiques) : le modèle dépasse la référence publiée sans aucun exemple cryptique (AUPRC 0,435 contre
+          0,36).
+        skills: [transfer_learning, experimental_design, binding_sites]
+      - id: eur_adapter_placement
+        status: confirmed
+        default: true
+        metrics: {coach420_auprc_attention_only: 0.446, coach420_auprc_ffn: 0.550}
+        en: >-
+          Showed that extending LoRA adapters to feed-forward layers prevents catastrophic forgetting: attention-only
+          adapters lost general binding ability on external benchmarks (COACH420 AUPRC 0.51→0.45), while the
+          feed-forward variant improved it (0.51→0.55).
+        fr: >-
+          Démonstration que l'extension des adaptateurs LoRA aux couches feed-forward évite l'oubli catastrophique :
+          l'adaptation limitée à l'attention dégrade la détection générale sur benchmarks externes (COACH420 AUPRC
+          0,51→0,45), la variante feed-forward l'améliore (0,51→0,55).
+        skills: [lora, transfer_learning, evaluation, benchmarking]
+      # ---- engineering ----
+      - id: eur_pipeline
+        status: confirmed
+        default: true
+        en: >-
+          Built a four-stage training pipeline in PyTorch, Hugging Face Transformers and PEFT, with Optuna
+          hyperparameter searches (50 trials per variant, pruning) and 5-fold cross-validation, run on NVIDIA H100
+          GPUs via SLURM.
+        fr: >-
+          Développement d'un pipeline d'entraînement en quatre étapes (PyTorch, Hugging Face Transformers, PEFT) avec
+          recherche d'hyperparamètres Optuna (50 essais par variante, élagage) et validation croisée à 5 plis, exécuté
+          sur GPU NVIDIA H100 via SLURM.
+        skills: [pytorch, huggingface, lora, optuna, hyperparameter_tuning, cross_validation, slurm, hpc, multi_gpu]
+      - id: eur_memory
+        status: confirmed
+        en: >-
+          Fit training of a 15B-parameter model on a single 64 GB H100 without quantisation, using a frozen bfloat16
+          backbone, LoRA (≈0.1% of parameters trainable), gradient checkpointing and scaled dot-product attention.
+        fr: >-
+          Entraînement d'un modèle de 15 milliards de paramètres sur un seul H100 de 64 Go sans quantification :
+          backbone gelé en bfloat16, LoRA (≈0,1 % des paramètres entraînables), gradient checkpointing, attention SDPA.
+        skills: [lora, mixed_precision, gpu_memory_optimisation, pytorch]
+      - id: eur_hpc_pipeline
+        status: confirmed
+        en: >-
+          Ran all training and evaluation on the MareNostrum 5 supercomputer (EuroHPC allocation): SLURM job
+          submission and monitoring, wall-time and GPU-hour budgeting on a shared allocation.
+        fr: >-
+          Exécution de l'ensemble des entraînements sur le supercalculateur MareNostrum 5 (allocation EuroHPC) :
+          soumission et suivi de jobs SLURM, gestion du temps de calcul et des heures GPU d'une allocation partagée.
+        skills: [slurm, hpc, multi_gpu, linux, bash]
+      # ---- rigour ----
+      - id: eur_leakage
+        status: confirmed
+        default: true
+        en: >-
+          Removed residue-level and homology data leakage by clustering proteins with MMseqs2 at 30% sequence
+          identity and splitting at cluster level; handled severe class imbalance (<5% positives) with weighted
+          loss and AUPRC-based model selection.
+        fr: >-
+          Suppression des fuites de données (au niveau des résidus et par homologie) par clustering MMseqs2 à 30 %
+          d'identité et découpage par cluster ; gestion d'un fort déséquilibre de classes (<5 % de positifs) par une
+          perte pondérée et une sélection de modèle sur l'AUPRC.
+        skills: [mmseqs2, data_leakage, class_imbalance, evaluation, experimental_design]
+      - id: eur_threshold_fix
+        status: confirmed
+        en: >-
+          Diagnosed why half of the hyperparameter trials collapsed to zero MCC (decision threshold tuned as a
+          hyperparameter) and redesigned the search around a threshold-free objective with a post-hoc operating
+          point.
+        fr: >-
+          Diagnostic de l'effondrement de la moitié des essais d'optimisation (seuil de décision traité comme un
+          hyperparamètre) et refonte de la recherche autour d'un objectif indépendant du seuil.
+        skills: [hyperparameter_tuning, evaluation, debugging]
+      - id: eur_baseline_audit
+        status: confirmed
+        en: >-
+          Audited the published baseline's source code and found its decision threshold was calibrated on a
+          different model than the one reported; anchored all comparisons on threshold-free metrics (AUPRC, AUROC).
+        fr: >-
+          Audit du code source de la méthode de référence : son seuil de décision était calibré sur un autre modèle
+          que celui publié ; comparaisons ancrées sur des métriques indépendantes du seuil (AUPRC, AUROC).
+        skills: [research_reproduction, code_review, evaluation]
+      # ---- interpretability ----
+      - id: eur_sae
+        status: confirmed
+        default: true
+        metrics: {features: 50, auprc_recovered: "81%", dictionary_size: 163840}
+        en: >-
+          Interpretability: trained sparse autoencoders (163,840 features) on frozen vs fine-tuned ESM2-15B
+          activations; 50 features recover 81% of the model's AUPRC, and fine-tuning shifts features from
+          amino-acid identity toward binding context.
+        fr: >-
+          Interprétabilité mécaniste : autoencodeurs parcimonieux (163 840 features) sur les activations d'ESM2-15B
+          gelé et fine-tuné ; 50 features retrouvent 81 % de l'AUPRC du modèle, et le fine-tuning déplace les features
+          de l'identité de l'acide aminé vers le contexte de liaison.
+        skills: [interpretability, sparse_autoencoders, probing, esm2, pytorch]
+      - id: eur_ablation
+        status: confirmed
+        en: >-
+          Ran feature ablations showing ligand-class features compete inside the model: removing the top cofactor
+          features lowered cofactor AUPRC by 0.04 and raised nucleotide AUPRC by 0.06.
+        fr: >-
+          Ablations de features montrant une compétition entre classes de ligands : retirer les principales features
+          « cofacteur » réduit leur AUPRC de 0,04 et augmente celle des nucléotides de 0,06.
+        skills: [interpretability, ablation_studies]
+      - id: eur_family_control
+        status: confirmed
+        en: >-
+          Showed that crypticity probes evaluated without protein-family control are inflated by ≈0.20 AUROC
+          (0.87 vs 0.67), a methodological caution for the field.
+        fr: >-
+          Mise en évidence d'une surestimation d'environ 0,20 AUROC (0,87 contre 0,67) des sondes de crypticité
+          évaluées sans contrôle par famille de protéines : un avertissement méthodologique pour le domaine.
+        skills: [probing, data_leakage, evaluation, research_reproduction]
+      # ---- communication ----
+      - id: eur_comm
+        status: confirmed
+        en: >-
+          Delivered a documented, reproducible pipeline, a ~60-page technical report in LaTeX and a presentation
+          to Euranova and an academic jury.
+        fr: >-
+          Livraison d'un pipeline documenté et reproductible, d'un rapport technique d'environ 60 pages en LaTeX et
+          d'une présentation devant Euranova et un jury académique.
+        skills: [scientific_writing, latex, presentation, reproducibility]
+
+  - id: orion
+    status: confirmed
+    title: {en: Computer Vision Intern, fr: Stagiaire en Vision par Ordinateur}
+    company: Orion.IA          # CVs say "Orion AI" — which name do you want printed?
+    location: Tunis, Tunisia
+    start: 2025-06
+    end: 2025-09               # QUESTION: CVs say 06–09/2025, agreement says 01/06–31/08, report says June–July
+    context:
+      en: >-
+        Generative-AI start-up doing virtual home staging for real-estate clients (France/Europe). Pipeline:
+        BLIP captioning → GPT design prompt → structural mask → SDXL (RealVisXL V4) inpainting.
+      fr: >-
+        Start-up d'IA générative de home staging virtuel pour des clients de l'immobilier (France/Europe).
+    profiles: [genai_cv, general_ml]
+    bullets:
+      - id: ori_eval
+        status: confirmed
+        default: true
+        en: >-
+          Evaluated a text-guided image-editing pipeline (Stable Diffusion, Differential Diffusion) and analyzed
+          the causes of hallucinations.
+        fr: >-
+          Évaluation d'un pipeline d'édition d'images guidée par texte (Stable Diffusion, Differential Diffusion)
+          et analyse des causes des hallucinations.
+        skills: [stable_diffusion, diffusion_models, inpainting, evaluation]
+      - id: ori_segmentation
+        status: confirmed
+        default: true
+        en: >-
+          Built segmentation pipelines (SAM, SegFormer, Detectron2) to generate editing masks, and designed
+          IoU-based metrics to compare models.
+        fr: >-
+          Développement de pipelines de segmentation (SAM, SegFormer, Detectron2) pour générer les masques
+          d'édition, et conception de métriques basées sur l'IoU pour comparer les modèles.
+        skills: [segmentation, sam, segformer, detectron2, evaluation]
+      - id: ori_dashboard
+        status: confirmed
+        default: true
+        en: >-
+          Developed a benchmarking dashboard in Streamlit and Plotly to analyze user feedback and track output
+          quality.
+        fr: >-
+          Création d'un tableau de bord de benchmarking sous Streamlit et Plotly pour analyser les retours
+          utilisateurs et suivre la qualité des résultats.
+        skills: [streamlit, plotly, dashboards]
+      # --- from the Orion.IA report ---
+      - id: ori_batch_runner
+        status: to_confirm
+        en: >-
+          Built a parallel batch-testing pipeline that ran the four-stage staging pipeline on real listing photos
+          scraped from French real-estate sites, logging every intermediate output and per-stage timing into a
+          ratable results database.
+        skills: [python, pandas, web_scraping, data_pipelines, experiment_tracking]
+      - id: ori_hypotheses
+        status: to_confirm
+        en: >-
+          Turned failure analysis into testable hypotheses and ran controlled experiments: protecting detected
+          windows and doors beat masking the rest of the room, and SDXL was retained over Stable Diffusion 1.x for
+          realism.
+        skills: [experimental_design, stable_diffusion, inpainting, segmentation]
+      - id: ori_root_causes
+        status: to_confirm
+        metrics: {empty_masks_pct: 8, bad_labels_pct: 22, prompt_words: 258}
+        en: >-
+          Traced unfaithful generations to cheap-to-fix upstream causes: empty masks in 8% of images, malformed
+          room labels in 22% of rows, and design prompts averaging 258 words against a 77-token text-encoder limit.
+        skills: [error_analysis, prompt_engineering, llm]
+      - id: ori_latency
+        status: to_confirm
+        en: >-
+          Profiled the pipeline (67.6 s per image on average) and showed the diffusion step accounts for two thirds
+          of processing time, guiding latency work.
+        skills: [profiling]
+
+  - id: iga
+    status: confirmed
+    title: {en: Database & Data Analyst Intern, fr: Stagiaire Data Analyst & Bases de Données}
+    company: IGA
+    location: Tunis, Tunisia
+    start: 2024-06
+    end: 2024-08
+    profiles: [general_ml]
+    bullets:
+      - id: iga_sql
+        status: confirmed
+        default: true
+        en: Optimized and maintained SQL databases supporting business operations and reporting.
+        fr: Optimisation et maintenance des bases de données SQL utilisées pour les opérations et le reporting.
+        skills: [sql, databases]
+      - id: iga_workflows
+        status: confirmed
+        default: true
+        en: >-
+          Built data cleaning, validation and transformation workflows and automated recurring reports, reducing
+          manual errors.
+        fr: >-
+          Mise en place de workflows de nettoyage, validation et transformation des données et automatisation des
+          rapports récurrents, réduisant les erreurs manuelles.
+        skills: [sql, python, data_cleaning, reporting_automation]
+
+# ---------------------------------------------------------------------------------------------
+projects:
+
+  - id: vcmi_rag
+    status: confirmed
+    title: {en: Version-Aware RAG Assistant for Regulatory Documents, fr: Assistant RAG multi-versions pour documents réglementaires}
+    date: 2026-10
+    links: {code: github.com/elyesCH15/vcmi-versioned-rag, demo: true}
+    profiles: [climate_ai, general_ml, mission_driven]
+    bullets:
+      - id: rag_build
+        status: confirmed
+        default: true
+        en: >-
+          Built a RAG assistant over six versions of a carbon-credit standard (VCMI Claims Code) that answers from
+          the version in force on a chosen date, cites the page and declines when the documents lack the answer;
+          deployed with Streamlit.
+        fr: >-
+          Développement d'un assistant RAG couvrant six versions d'un standard de crédits carbone (VCMI Claims
+          Code) : il répond selon la version en vigueur à une date donnée, cite la page source et refuse de
+          répondre lorsque les documents ne contiennent pas l'information ; déployé avec Streamlit.
+        skills: [rag, llm, bm25, streamlit, carbon_markets]
+      - id: rag_results
+        status: confirmed
+        default: true
+        metrics: {acc_from: 0.42, acc_to: 0.73, questions: 76, wrong_version_from: 0.77, wrong_version_to: 0.0}
+        en: >-
+          Raised accuracy from 42% (plain RAG) to 73% on a 76-question test set and cut wrong-version retrieval
+          from 77% to 0%; graded with an LLM judge checked against manual grading.
+        fr: >-
+          Précision portée de 42 % (RAG classique) à 73 % sur un jeu de test de 76 questions, et erreurs de version
+          réduites de 77 % à 0 % ; évaluation par un LLM juge validé par notation manuelle.
+        skills: [llm_as_judge, evaluation]
+
+  - id: kibale_forest
+    status: confirmed
+    title: {en: Satellite Analysis of Forest Fragmentation, fr: Analyse satellitaire de la fragmentation forestière}
+    date: 2026-10
+    links: {code: github.com/elyesCH15/kibale-forest-fragmentation, report: true}
+    profiles: [climate_ai, research_hpc, mission_driven]
+    bullets:
+      - id: kib_pipeline
+        status: confirmed
+        default: true
+        en: >-
+          Built a geospatial pipeline in Python (rasterio, Shapely, OpenStreetMap) to test published research
+          claims on 24 years of 30 m satellite data around a Ugandan national park, with pass criteria fixed in
+          advance.
+        fr: >-
+          Développement d'un pipeline géospatial en Python (rasterio, Shapely, OpenStreetMap) pour tester des
+          résultats de recherche publiés sur 24 ans de données satellitaires à 30 m autour d'un parc national
+          ougandais, avec des critères de validation fixés à l'avance.
+        skills: [rasterio, shapely, openstreetmap, remote_sensing, geospatial, research_reproduction]
+      - id: kib_results
+        status: confirmed
+        default: true
+        en: >-
+          Measured forest loss and fragmentation metrics under six sensitivity settings, and validated loss rates
+          against independent field studies.
+        fr: >-
+          Mesure de la déforestation et de métriques de fragmentation selon six scénarios de sensibilité, et
+          validation des taux de perte par des études de terrain indépendantes.
+        skills: [sensitivity_analysis, statistics, deforestation, biodiversity]
+
+  - id: unet_cgnet
+    status: confirmed          # QUESTION: school project? year? any numbers (mIoU, speed)? dataset?
+    title: {en: Satellite Image Semantic Segmentation (U-Net), fr: Segmentation sémantique d'images satellites (U-Net)}
+    profiles: [genai_cv, climate_ai]
+    bullets:
+      - id: unet_main
+        status: confirmed
+        default: true
+        en: >-
+          Integrated a CGNet block into a U-Net architecture and evaluated its impact on segmentation accuracy and
+          efficiency on satellite datasets.
+        fr: >-
+          Intégration d'un bloc CGNet dans une architecture U-Net et évaluation de son impact sur la précision et
+          l'efficacité de la segmentation sur des jeux de données satellitaires.
+        skills: [unet, segmentation, pytorch, remote_sensing]
+
+  - id: jobhunter
+    status: to_confirm         # this very project — worth listing once it's running well
+    title: {en: Automated Job-Search Pipeline with LLM Scoring}
+    date: 2026-10
+    links: {code: private}
+    profiles: [general_ml]
+    bullets:
+      - id: jh_main
+        status: to_confirm
+        en: >-
+          Built a scheduled pipeline (GitHub Actions, Supabase, Streamlit) that collects jobs from 30+ APIs and
+          company boards, deduplicates them, and ranks them with rule-based scoring blended with free-tier LLMs
+          behind a provider fallback chain and response cache.
+        skills: [python, llm, github_actions, supabase, streamlit, data_pipelines]
+
+# ---------------------------------------------------------------------------------------------
+education:
+  - id: insat
+    status: confirmed
+    degree:
+      en: National Engineering Degree in Networks & Telecommunications — Specialization in Artificial Intelligence & Computer Vision
+      fr: Diplôme national d'ingénieur en Réseaux & Télécommunications — Spécialisation Intelligence Artificielle & Vision par ordinateur
+      # QUESTION: your CVs use 4 variants (specialization / option / minor / "Spécialisation IA"). Which is official?
+    school: {en: "INSAT (National Institute of Applied Science and Technology), Tunis", fr: "INSAT (Institut National des Sciences Appliquées et de Technologie), Tunis"}
+    start: 2021            # QUESTION: CVs say 2021; agreement says first enrolment 2020 (MPI year?)
+    end: 2026
+    # Coursework: INSAT plan d'études (2022-23 edition), path MPI → RT2 → RT3 → RT4 → RT5, option
+    # "Image, Vision et apprentissage". Grouped by theme; `cv: true` = shown on CVs by default.
+    coursework:
+      ai_vision:
+        - {en: Machine Learning, fr: Machine Learning, year: RT4, cv: true, skills: [sklearn]}
+        - {en: Deep Learning, fr: Deep Learning, year: RT4, cv: true, skills: [pytorch, tensorflow]}
+        - {en: Image Processing, fr: Traitement d'images, year: RT4, cv: true, skills: [opencv]}
+        - {en: Virtual Reality, fr: Réalité virtuelle, year: RT4, option: true}
+        - {en: Advanced Learning for Image and Graph Data, fr: Techniques d'apprentissage avancé pour données images et graphes, year: RT5, cv: true, skills: [graph_ml]}
+        - {en: Video Analysis & Object Recognition, fr: Analyse vidéo et reconnaissance d'objets, year: RT5, cv: true, skills: [yolov8, object_detection]}
+        - {en: Image & Video Compression, Indexing and Watermarking, fr: "Compression, indexation et tatouage des images et vidéos", year: RT5}
+      data:
+        - {en: Data Analysis, fr: Analyse des données, year: RT3, cv: true, skills: [statistics]}
+        - {en: Big Data, fr: Big Data, year: "RT4, RT5", cv: true, skills: [spark, hadoop]}
+        - {en: Business Intelligence, fr: Business Intelligence, year: RT4, skills: [bi]}
+        - {en: Databases & Database Administration, fr: Bases de données & administration, year: "RT2, RT3", cv: true, skills: [sql, databases]}
+      maths:
+        - {en: Probability & Statistics, fr: Probabilités et statistiques, year: RT2, cv: true, skills: [statistics]}
+        - {en: Statistics for Engineers, fr: Statistiques pour l'ingénieur, year: RT3}
+        - {en: Stochastic Processes & Queueing Theory, fr: Processus stochastiques et files d'attente, year: RT3, skills: [stochastic_processes]}
+        - {en: Nonlinear Optimisation, fr: Optimisation non linéaire, year: RT3, cv: true, skills: [optimisation]}
+        - {en: Operations Research & Graph Theory, fr: Recherche opérationnelle et théorie des graphes, year: RT3, skills: [optimisation, graph_theory]}
+        - {en: Numerical Matrix Analysis, fr: Analyse numérique matricielle, year: RT3, skills: [linear_algebra]}
+        - {en: Information Theory & Coding, fr: Théorie de l'information et codage, year: RT4, skills: [information_theory]}
+        - {en: Formal Logic; Language & Automata Theory, fr: Logique formelle ; théorie des langages et des automates, year: "RT3, RT4"}
+        - {en: "Analysis, Algebra (preparatory)", fr: "Analyse, algèbre (cycle préparatoire)", year: "MPI, RT2"}
+      signal:
+        - {en: Signal Processing & Digital Signal Processing, fr: Traitement du signal & traitement numérique du signal, year: "RT2, RT4", cv: true, skills: [signal_processing]}
+        - {en: Signals & Systems, fr: Signaux et systèmes, year: RT3, skills: [signal_processing]}
+      software:
+        - {en: Algorithms & Data Structures, fr: Algorithmique et structures de données, year: MPI, cv: true}
+        - {en: Object-Oriented Programming, fr: Programmation orientée objet, year: RT2, cv: true}
+        - {en: Advanced Python; C++; Java, fr: Python avancé ; C++ ; Java, year: RT2, skills: [python, cpp, java]}
+        - {en: Java EE Development, fr: Technologies de développement Java EE, year: RT3, skills: [java_ee]}
+        - {en: Web Development, fr: Développement web, year: RT2, skills: [web_dev]}
+        - {en: Software Analysis & Design (UML), fr: Analyse et conception des logiciels, year: RT3, cv: true, skills: [uml]}
+        - {en: Development Frameworks, fr: Framework de développement, year: RT4}
+        - {en: Unified Process & Agile Methods, fr: Processus unifiés et approches agiles, year: RT4, skills: [agile]}
+        - {en: Distributed Systems & Applications, fr: Fondements des systèmes et applications réparties, year: RT4, cv: true, skills: [distributed_systems]}
+        - {en: Real-Time & Embedded Systems, fr: Systèmes temps réels et embarqués, year: RT4}
+        - {en: Reactive Architecture & Microservices, fr: Architecture réactive et microservices, year: RT5, skills: [microservices]}
+        - {en: DevOps, fr: DevOps, year: RT5, cv: true, skills: [devops, docker, ci_cd]}
+      systems_cloud:
+        - {en: Operating Systems; UNIX System & Network Administration, fr: Systèmes d'exploitation ; administration système et réseau UNIX, year: "RT2, RT3", cv: true, skills: [linux, bash]}
+        - {en: Cloud & Virtualisation, fr: Cloud et virtualisation, year: "RT4, RT5", cv: true, skills: [cloud, virtualisation]}
+        - {en: Computer Architecture, fr: Architecture des ordinateurs, year: RT2}
+      networks_telecom:
+        - {en: "Computer Networks: architecture, LAN, IP, wireless, high-speed, mobile", fr: "Réseaux : architecture, locaux, IP, sans fil, haut débit, mobiles", year: "RT2–RT4", cv: true, skills: [networking, tcp_ip]}
+        - {en: Network Administration, Monitoring & Planning, fr: Administration, surveillance et planification des réseaux, year: "RT3, RT5", skills: [networking]}
+        - {en: Network Security, fr: Sécurité des réseaux, year: RT3, skills: [network_security]}
+        - {en: Protocol Engineering, fr: Ingénierie des protocoles, year: RT3}
+        - {en: Network Performance Modelling & Evaluation, fr: Modélisation et évaluation des performances des réseaux, year: RT4, skills: [stochastic_processes]}
+        - {en: IoT Technologies & Protocols, fr: Technologies et protocoles pour l'IoT, year: RT5, cv: true, skills: [iot]}
+        - {en: "Digital Transmission, RF Circuits, Optical Communications, Cellular Networks", fr: "Transmission numérique, circuits RF, communications optiques, réseaux cellulaires", year: "RT2–RT4", skills: [telecom]}
+        - {en: Smart Devices, fr: Smart Device, year: RT3, skills: [iot]}
+      management:
+        - {en: "Project Management; Strategic Management; Entrepreneurship", fr: "Management de projets ; management stratégique ; création d'entreprises", year: "RT4, RT5"}
+        - {en: Personal & Professional Projects (PPP), fr: Projet personnel professionnel, year: "RT3, RT4"}
+  - id: bac
+    status: confirmed
+    degree: {en: "Baccalaureate in Sciences", fr: "Baccalauréat Sciences"}
+    end: 2020
+    default: false
+
+languages:
+  - {id: ar, en: Arabic, fr: Arabe, level: {en: Native, fr: Langue maternelle}}
+  - {id: en, en: English, fr: Anglais, level: {en: Fluent, fr: Courant}, certificate: "TOEFL iBT 110", show_certificate: false}
+  - {id: fr, en: French, fr: Français, level: {en: Fluent, fr: Courant}}
+
+activities:
+  - id: timun
+    status: to_confirm
+    title: {en: Member, fr: Membre}
+    organisation: TIMUN — Tunisian International Model United Nations
+    start: 2020
+    end: 2024
+    profiles: [mission_driven, climate_ai]
+    default: false
+    bullets:
+      - id: timun_sdg
+        status: to_confirm
+        en: Took part in several SDG simulations, including one with UNHCR, and contributed to several of the organisation's projects.
+        skills: [public_speaking, negotiation, sdgs]
+      - id: timun_magazine
+        status: to_confirm
+        en: Editor-in-chief of a magazine edition on climate change.
+        skills: [editorial_leadership, scientific_writing, climate]
+
+# ---------------------------------------------------------------------------------------------
+# Skills. source: work | project | coursework | self_taught (several allowed).
+# used_in = entries that show it (optional). level = null → you set it (1 basic … 5 expert).
+skills:
+  # Programming
+  - {id: python, name: Python, category: programming, source: [work, project, coursework], level: null}
+  - {id: sql, name: SQL, category: programming, source: [work, coursework], level: null}
+  - {id: java, name: Java, category: programming, source: [coursework], level: null}
+  - {id: c, name: C, category: programming, source: [coursework], level: null}
+  - {id: cpp, name: C++, aliases: [C plus plus], category: programming, source: [coursework], level: null}
+  - {id: bash, name: Bash, aliases: [shell scripting], category: programming, source: [work], level: null}
+  - {id: git, name: Git, category: tools, source: [work, project], level: null}
+  - {id: linux, name: Linux, category: tools, source: [work], level: null}
+  - {id: latex, name: LaTeX, category: tools, source: [work], level: null}
+  # ML / DL
+  - {id: pytorch, name: PyTorch, category: ml, source: [work, project], level: null}
+  - {id: tensorflow, name: TensorFlow, category: ml, source: [coursework], level: null}
+  - {id: sklearn, name: scikit-learn, category: ml, source: [coursework, project], level: null}
+  - {id: huggingface, name: Hugging Face (Transformers, PEFT, Diffusers), aliases: [transformers, peft, diffusers], category: ml, source: [work], level: null}
+  - {id: fine_tuning, name: Fine-tuning large pretrained models, aliases: [model adaptation], category: ml, source: [work], level: null}
+  - {id: lora, name: LoRA / QLoRA, aliases: [parameter-efficient fine-tuning, PEFT], category: ml, source: [work], level: null}
+  - {id: transfer_learning, name: Transfer learning, category: ml, source: [work], level: null}
+  - {id: optuna, name: Optuna, category: ml, source: [work], level: null}
+  - {id: hyperparameter_tuning, name: Hyperparameter optimisation, aliases: [HPO], category: ml, source: [work], level: null}
+  - {id: cross_validation, name: Cross-validation, category: ml, source: [work, coursework], level: null}
+  - {id: evaluation, name: Model evaluation & metrics design, aliases: [AUPRC, MCC, IoU, benchmarking], category: ml, source: [work, project], level: null}
+  - {id: benchmarking, name: Benchmarking, category: ml, source: [work], level: null}
+  - {id: interpretability, name: Mechanistic interpretability, aliases: [explainability, XAI], category: ml, source: [work], level: null}
+  - {id: sparse_autoencoders, name: Sparse autoencoders, aliases: [SAE], category: ml, source: [work], level: null}
+  - {id: data_leakage, name: Data leakage detection, category: ml, source: [work], level: null}
+  - {id: experimental_design, name: Experimental design & hypothesis testing, category: research, source: [work, project], level: null}
+  - {id: distributed_training, name: Distributed training, category: ml, source: [work], level: null}
+  # Bio
+  - {id: esm2, name: ESM2, category: bio, source: [work], level: null}
+  - {id: protein_lm, name: Protein language models, aliases: [PLM, pLM, protein foundation models], category: bio, source: [work], level: null}
+  - {id: binding_sites, name: Protein–ligand binding site prediction, aliases: [drug discovery, druggability, pocket prediction], category: bio, source: [work], level: null}
+  - {id: protein_structure, name: Protein structure & conformational change, category: bio, source: [work], level: null}
+  - {id: mmseqs2, name: MMseqs2 sequence clustering, category: bio, source: [work], level: null}
+  # HPC
+  - {id: hpc, name: HPC clusters (MareNostrum 5, EuroHPC), aliases: [supercomputing, high-performance computing], category: hpc, source: [work], level: null}
+  - {id: slurm, name: SLURM, category: hpc, source: [work], level: null}
+  - {id: multi_gpu, name: Multi-GPU training (H100), aliases: [GPU clusters], category: hpc, source: [work], level: null}
+  # Computer vision / generative
+  - {id: opencv, name: OpenCV, category: cv, source: [coursework], level: null}
+  - {id: yolov8, name: YOLOv8, aliases: [YOLO, object detection], category: cv, source: [coursework], level: null}
+  - {id: segmentation, name: Image segmentation, aliases: [semantic segmentation], category: cv, source: [work, project], level: null}
+  - {id: sam, name: SAM (Segment Anything), category: cv, source: [work], level: null}
+  - {id: segformer, name: SegFormer, category: cv, source: [work], level: null}
+  - {id: detectron2, name: Detectron2, category: cv, source: [work], level: null}
+  - {id: unet, name: U-Net, category: cv, source: [project], level: null}
+  - {id: stable_diffusion, name: Stable Diffusion / SDXL, aliases: [diffusion models, image generation], category: genai, source: [work], level: null}
+  - {id: diffusion_models, name: Diffusion models, category: genai, source: [work], level: null}
+  - {id: inpainting, name: Inpainting & Differential Diffusion, category: genai, source: [work], level: null}
+  # LLM / NLP
+  - {id: llm, name: LLMs, aliases: [large language models], category: nlp, source: [project, work], level: null}
+  - {id: rag, name: RAG, aliases: [retrieval-augmented generation], category: nlp, source: [project], level: null}
+  - {id: bm25, name: BM25 retrieval, aliases: [information retrieval], category: nlp, source: [project], level: null}
+  - {id: llm_as_judge, name: LLM-as-judge evaluation, category: nlp, source: [project], level: null}
+  - {id: prompt_engineering, name: Prompt design, aliases: [prompt engineering], category: nlp, source: [project, work], level: null}
+  # Geospatial / climate
+  - {id: geospatial, name: Geospatial analysis, aliases: [GIS], category: geo, source: [project], level: null}
+  - {id: rasterio, name: rasterio, category: geo, source: [project], level: null}
+  - {id: gdal, name: GDAL, category: geo, source: [project], level: null}
+  - {id: shapely, name: Shapely, category: geo, source: [project], level: null}
+  - {id: openstreetmap, name: OpenStreetMap, category: geo, source: [project], level: null}
+  - {id: remote_sensing, name: Satellite imagery / remote sensing, aliases: [earth observation], category: geo, source: [project], level: null}
+  - {id: deforestation, name: Deforestation & fragmentation metrics, category: domain, source: [project], level: null}
+  - {id: biodiversity, name: Biodiversity / conservation context, category: domain, source: [project], level: null}
+  - {id: carbon_markets, name: Carbon markets & integrity standards (VCMI, ICVCM, SBTi), category: domain, source: [project], level: null}
+  # Data / MLOps
+  - {id: pandas, name: Pandas, category: data, source: [work, project], level: null}
+  - {id: numpy, name: NumPy / SciPy, category: data, source: [work, project], level: null}
+  - {id: spark, name: Spark, category: data, source: [coursework], level: null, status: to_confirm}
+  - {id: airflow, name: Airflow, category: data, source: [coursework], level: null, status: to_confirm}   # not in the study plan — where from?
+  - {id: wandb, name: Weights & Biases, category: mlops, source: [work], level: null}
+  - {id: streamlit, name: Streamlit, category: mlops, source: [work, project], level: null}
+  - {id: plotly, name: Plotly, category: data, source: [work], level: null}
+  - {id: matplotlib, name: Matplotlib, category: data, source: [work, project], level: null}
+  - {id: statistics, name: Statistics & sensitivity analysis, category: data, source: [project, coursework], level: null}
+  - {id: databases, name: Relational databases, category: data, source: [work, coursework], level: null}
+  - {id: data_cleaning, name: Data cleaning & validation, category: data, source: [work], level: null}
+  - {id: web_scraping, name: Web scraping, category: data, source: [work], level: null}
+  - {id: github_actions, name: GitHub Actions (CI / scheduled jobs), category: mlops, source: [project], level: null}
+  - {id: supabase, name: Supabase / PostgreSQL, category: data, source: [project], level: null}
+  # Communication / research
+  - {id: scientific_writing, name: Scientific & technical writing, category: soft, source: [work], level: null}
+  - {id: presentation, name: Presenting results to a jury / stakeholders, category: soft, source: [work], level: null}
+  - {id: research_reproduction, name: Reproducing & auditing published results, category: research, source: [work, project], level: null}
+  # Added from the Euranova report and the INSAT study plan
+  - {id: mixed_precision, name: Mixed-precision training (bfloat16), category: ml, source: [work], level: null}
+  - {id: gpu_memory_optimisation, name: GPU memory optimisation (gradient checkpointing, SDPA), category: ml, source: [work], level: null}
+  - {id: class_imbalance, name: Class-imbalance handling (weighted loss, AUPRC), category: ml, source: [work], level: null}
+  - {id: probing, name: Linear probing of representations, category: ml, source: [work], level: null}
+  - {id: ablation_studies, name: Ablation studies, category: research, source: [work], level: null}
+  - {id: reproducibility, name: Reproducible research pipelines, category: research, source: [work], level: null}
+  - {id: debugging, name: Debugging training & search pipelines, category: ml, source: [work], level: null}
+  - {id: code_review, name: Reading & auditing research code, category: research, source: [work], level: null}
+  - {id: graph_ml, name: Machine learning on graphs, category: ml, source: [coursework], level: null}
+  - {id: object_detection, name: Object detection & recognition, category: cv, source: [coursework], level: null}
+  - {id: hadoop, name: Hadoop, category: data, source: [coursework], level: null, status: to_confirm}
+  - {id: bi, name: Business Intelligence, category: data, source: [coursework], level: null}
+  - {id: stochastic_processes, name: Stochastic processes & queueing theory, category: maths, source: [coursework], level: null}
+  - {id: optimisation, name: Mathematical optimisation & operations research, category: maths, source: [coursework], level: null}
+  - {id: graph_theory, name: Graph theory, category: maths, source: [coursework], level: null}
+  - {id: linear_algebra, name: Linear algebra & numerical analysis, category: maths, source: [coursework], level: null}
+  - {id: information_theory, name: Information theory & coding, category: maths, source: [coursework], level: null}
+  - {id: signal_processing, name: Signal processing, category: maths, source: [coursework], level: null}
+  - {id: java_ee, name: Java EE, category: programming, source: [coursework], level: null}
+  - {id: web_dev, name: Web development, category: programming, source: [coursework], level: null}
+  - {id: uml, name: Software design (UML), category: programming, source: [coursework], level: null}
+  - {id: agile, name: Agile methods, category: soft, source: [coursework], level: null}
+  - {id: distributed_systems, name: Distributed systems, category: programming, source: [coursework], level: null}
+  - {id: microservices, name: Microservices architecture, category: programming, source: [coursework], level: null}
+  - {id: devops, name: DevOps, category: mlops, source: [coursework], level: null}
+  - {id: docker, name: Docker, category: mlops, source: [coursework], level: null, status: to_confirm}
+  - {id: ci_cd, name: CI/CD, category: mlops, source: [coursework, project], level: null}
+  - {id: cloud, name: Cloud computing, category: mlops, source: [coursework], level: null}
+  - {id: virtualisation, name: Virtualisation, category: mlops, source: [coursework], level: null}
+  - {id: networking, name: Computer networking, category: networks, source: [coursework], level: null}
+  - {id: tcp_ip, name: TCP/IP, category: networks, source: [coursework], level: null}
+  - {id: network_security, name: Network security, category: networks, source: [coursework], level: null}
+  - {id: iot, name: IoT protocols & devices, category: networks, source: [coursework], level: null}
+  - {id: telecom, name: Telecommunications & digital transmission, category: networks, source: [coursework], level: null}
