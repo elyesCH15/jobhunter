@@ -2,9 +2,9 @@
 (the scan records the error on that source and moves on)."""
 from __future__ import annotations
 
-import os
 from typing import Iterable
 
+from ..env import env
 from ..models import Job
 from .base import Http, RelevanceGate, strip_html, to_iso
 
@@ -15,7 +15,7 @@ class SkipSource(Exception):
 
 # ---------------- aggregators (query-based) ----------------
 def adzuna(cfg: dict, queries: Iterable[str], http: Http, gate: RelevanceGate) -> list[Job]:
-    app_id, app_key = os.getenv("ADZUNA_APP_ID"), os.getenv("ADZUNA_APP_KEY")
+    app_id, app_key = env("ADZUNA_APP_ID"), env("ADZUNA_APP_KEY")
     if not (app_id and app_key):
         raise SkipSource("ADZUNA_APP_ID / ADZUNA_APP_KEY not set")
     jobs = []
@@ -38,7 +38,8 @@ def adzuna(cfg: dict, queries: Iterable[str], http: Http, gate: RelevanceGate) -
 
 
 def jooble(cfg: dict, queries: Iterable[str], http: Http, gate: RelevanceGate) -> list[Job]:
-    key = os.getenv("JOOBLE_KEY")
+    """One request per location × query: keep locations × max_queries small (free key ≈ 500 requests)."""
+    key = env("JOOBLE_KEY")
     if not key:
         raise SkipSource("JOOBLE_KEY not set")
     jobs = []
@@ -111,8 +112,21 @@ def arbeitnow(cfg: dict, queries: Iterable[str], http: Http, gate: RelevanceGate
 
 
 # ---------------- company job boards (hidden market) ----------------
+GREENHOUSE_HOSTS = ("https://boards-api.greenhouse.io", "https://boards-api.eu.greenhouse.io")
+
+
 def greenhouse(slug: str, http: Http, gate: RelevanceGate) -> list[Job]:
-    data = http.get_json(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs", {"content": "true"})
+    """Greenhouse hosts boards in two regions (US and EU, e.g. job-boards.eu.greenhouse.io/owkin)
+    and the slug doesn't say which: try the US API, then the EU one."""
+    first_error = None
+    for host in GREENHOUSE_HOSTS:
+        try:
+            data = http.get_json(f"{host}/v1/boards/{slug}/jobs", {"content": "true"})
+            break
+        except Exception as e:  # noqa: BLE001 — wrong region looks like a 404; report the US error
+            first_error = first_error or e
+    else:
+        raise first_error
     jobs = []
     for r in data.get("jobs", []):
         desc = strip_html(r.get("content"))

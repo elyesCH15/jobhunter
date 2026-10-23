@@ -16,7 +16,7 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 
 | Part | Where |
 |---|---|
-| Sources: Adzuna, Jooble, Remotive, RemoteOK, Arbeitnow, Greenhouse / Lever / Ashby company boards | `jh/collectors/`, `config/sources.yaml` |
+| Sources: Jooble, Remotive, RemoteOK, Arbeitnow, Greenhouse / Lever / Ashby company boards (Adzuna: off, paid) | `jh/collectors/`, `config/sources.yaml` |
 | Classification: language, country, region, remote, contract, seniority | `jh/classify.py` |
 | Dedupe across sites and across runs | `jh/dedupe.py` |
 | Scoring per profile + CV routing + free-LLM refinement with fallback | `jh/score.py`, `jh/llm.py` |
@@ -34,6 +34,8 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 ### 2. Supabase — database
 1. Create a free project at supabase.com (pick the EU region closest to you).
 2. **SQL Editor → New query** → paste all of `db/schema.sql` → **Run**.
+   Already have a database from an earlier version? Run the files in `db/migrations/` in order instead
+   (`001` makes the `job_board` view respect Row Level Security).
 3. **Project Settings → API**: copy the **Project URL** and the **service_role** key (not the anon key).
    The service key bypasses security — it only ever goes in GitHub Secrets, Streamlit Secrets and your local `.env`.
 
@@ -42,15 +44,19 @@ Sources and LLMs without a key are skipped, so you can start with just one LLM a
 - **Gemini**: aistudio.google.com → Get API key
 - **Groq**: console.groq.com → API Keys
 - **OpenRouter**: openrouter.ai → Keys (free models end in `:free`)
-- **Adzuna**: developer.adzuna.com → register → App ID + App Key
-- **Jooble**: jooble.org/api/about → request a key by email
+- **Jooble**: jooble.org/api/about → request a key by email. The free key has a 500-request limit, so
+  Jooble runs once a day with 3 locations × 4 queries (≈ 360 requests a month) — see `config/sources.yaml`.
+- **Adzuna**: real access now costs £8/month, so it is `active: false` in `config/sources.yaml`.
+  To use it: developer.adzuna.com → App ID + App Key → secrets → set `active: true`.
+
+Stray spaces, tabs or line breaks around a pasted key or URL are trimmed automatically (`jh/env.py`).
 
 Free tiers and model names change; if a model is retired, set `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL`.
 
 ### 4. GitHub Secrets
 Repo → **Settings → Secrets and variables → Actions → New repository secret**, one per line of `.env.example`:
 `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and whichever of `GEMINI_API_KEY`, `GROQ_API_KEY`,
-`OPENROUTER_API_KEY`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `JOOBLE_KEY` you have.
+`OPENROUTER_API_KEY`, `JOOBLE_KEY` (and `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` if you pay for Adzuna) you have.
 
 ### 5. First scan
 Repo → **Actions** → enable workflows if asked → **Scan for jobs → Run workflow** (tick *force*).
@@ -69,13 +75,39 @@ Then run **Snapshot database to Git** once to check the history commit works.
 - **Tracker**: everything past triage; change status and add notes as applications move.
 - **Filters**: add, pause or delete rules; *Re-apply to all jobs* updates jobs already found.
 - **Profiles**: edit titles, keywords, exclusions, queries, priority, or pause a profile.
-- **Sources**: which sources work, which need a key, which board slugs are wrong.
+- **Sources**: which sources work, which need a key, which board slugs are wrong. Sources you remove from
+  `config/sources.yaml` show as `inactive` after the next scan.
 - **Activity**: scans, status changes, and free-AI usage per provider.
 
 ## Adding company boards (hidden market)
-In `config/sources.yaml`, add the slug from the company's careers URL:
-`boards.greenhouse.io/<slug>`, `jobs.lever.co/<slug>`, `jobs.ashbyhq.com/<slug>`.
-The starter slugs are guesses — any wrong one shows as an error on the Sources page; fix or delete it.
+Company boards are listed in `config/sources.yaml` under `company_boards`, one slug per line:
+
+1. Open the company's careers page and click a job. The link tells you the platform and the slug:
+   `job-boards.greenhouse.io/<slug>` (or `boards.greenhouse.io/`, `job-boards.eu.greenhouse.io/`),
+   `jobs.lever.co/<slug>`, `jobs.ashbyhq.com/<slug>`.
+2. Check it by opening the API URL in a browser — JSON with jobs means it works, 404 means wrong slug or platform:
+   - Greenhouse `https://boards-api.greenhouse.io/v1/boards/<slug>/jobs` (EU boards: `boards-api.eu.greenhouse.io`;
+     the scanner tries both automatically)
+   - Lever `https://api.lever.co/v0/postings/<slug>?mode=json`
+   - Ashby `https://api.ashbyhq.com/posting-api/job-board/<slug>`
+3. Add the slug under the right platform, commit, push. A wrong slug only shows as an error on the Sources page.
+
+Companies on other systems (Workable, Teamtailor, Welcome to the Jungle, their own site) aren't supported yet;
+they're listed at the bottom of `sources.yaml` as Phase 5 candidates.
+
+**Relevance gate.** Boards return every posting, so before anything is stored the title must name an
+ML / data / research-engineering role ("machine learning", "ML engineer", "data scientist", "research scientist",
+"bioinformatics", "remote sensing", "PhD"… or one of your profile titles), or be an early-career title
+(intern, fellow, resident, graduate, junior) about AI / ML / research / data. Otherwise the description needs
+at least 3 of your profile keywords including a technical ML term, and the title must not be a sales,
+recruiting, legal, finance, office or manager job.
+
+**Strict boards.** Big boards (Anthropic, xAI, Planet… 100+ postings, mostly not ML) are listed under
+`strict:` in `sources.yaml`. On those, only the title counts, and senior / sr / staff / lead / principal /
+manager / head / director / architect / chief / VP titles are dropped — except intern, fellowship, residency,
+graduate, new grad, early career and junior titles, which are always kept when role-relevant.
+Add any source id (`greenhouse:<slug>`, `ashby:<slug>`, `lever:<slug>`, or an aggregator like `remoteok`)
+to make it strict.
 
 ## Running locally (optional, Windows)
 ```powershell

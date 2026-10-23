@@ -50,13 +50,21 @@ def run(store=None, http: Http | None = None, gateway: Gateway | None = None, fo
     active_profiles = [p for p in profiles if p.get("active", True)]
     rules = [F.Rule.from_dict(r) for r in filter_rows]
     gate = RelevanceGate(active_profiles)
+    strict_gate = RelevanceGate(active_profiles, strict=True)
+    strict_ids = {str(x).strip() for x in (sources_cfg.get("strict") or [])}
+
+    def gate_for(sid: str) -> RelevanceGate:
+        """Big boards listed under `strict:` in sources.yaml get the title-only, no-senior gate."""
+        return strict_gate if sid in strict_ids else gate
+
     queries = [q for p in active_profiles for q in (p.get("queries") or [])]
     salt = int(time.time() // 3600)
     known_sources = store.load_sources()
 
-    collected, per_source = [], {}
+    collected, per_source, configured = [], {}, set()
 
     def run_source(sid: str, kind: str, freq: int, fn, config: dict):
+        configured.add(sid)
         if only and not sid.startswith(only):
             return
         if not is_due(known_sources.get(sid), freq, force):
@@ -66,16 +74,16 @@ def run(store=None, http: Http | None = None, gateway: Gateway | None = None, fo
             jobs = fn()
             collected.extend(jobs)
             prev_total = (known_sources.get(sid) or {}).get("total_found") or 0
-            store.update_source(sid, kind, config=config, frequency_min=freq, last_run_at=now_iso(),
+            store.update_source(sid, kind, config=config, frequency_min=freq, active=True, last_run_at=now_iso(),
                                 last_status="ok", last_error=None, last_found=len(jobs), total_found=prev_total + len(jobs))
             per_source[sid] = len(jobs)
         except SkipSource as e:
-            store.update_source(sid, kind, config=config, frequency_min=freq, last_run_at=now_iso(),
+            store.update_source(sid, kind, config=config, frequency_min=freq, active=True, last_run_at=now_iso(),
                                 last_status="skipped", last_error=str(e), last_found=0)
             per_source[sid] = f"skipped: {e}"
         except Exception as e:  # noqa: BLE001 — one broken source never stops the scan
             msg = f"{type(e).__name__}: {str(e)[:250]}"
-            store.update_source(sid, kind, config=config, frequency_min=freq, last_run_at=now_iso(),
+            store.update_source(sid, kind, config=config, frequency_min=freq, active=True, last_run_at=now_iso(),
                                 last_status="error", last_error=msg, last_found=0)
             store.log_event("error", source_id=sid, detail={"error": msg})
             per_source[sid] = f"error: {msg}"
@@ -83,15 +91,24 @@ def run(store=None, http: Http | None = None, gateway: Gateway | None = None, fo
     for name, cfg in (sources_cfg.get("aggregators") or {}).items():
         if not cfg.get("active", True) or name not in AGGREGATORS:
             continue
-        qs = rotate(queries, int(cfg.get("max_queries", 6)), salt)
+        qs = rotate(queries, int(cfg.get("max_queries", 6)), salt)     # caps requests per run (Jooble quota)
         run_source(name, "api", int(cfg.get("frequency_min", 120)),
-                   lambda fn=AGGREGATORS[name], c=cfg, q=qs: fn(c, q, http, gate), cfg)
+                   lambda fn=AGGREGATORS[name], c=cfg, q=qs, g=gate_for(name): fn(c, q, http, g), cfg)
 
     boards = sources_cfg.get("company_boards") or {}
     bfreq = int(boards.get("frequency_min", 240))
     for platform, fn in BOARDS.items():
         for slug in boards.get(platform) or []:
-            run_source(f"{platform}:{slug}", "board", bfreq, lambda fn=fn, s=slug: fn(s, http, gate), {"slug": slug})
+            sid = f"{platform}:{slug}"
+            run_source(sid, "board", bfreq, lambda fn=fn, s=slug, g=gate_for(sid): fn(s, http, g),
+                       {"slug": slug, "strict": sid in strict_ids})
+
+    # sources removed from sources.yaml (or set active: false) stop showing as errors on the dashboard
+    if not only:
+        for sid, row in known_sources.items():
+            if sid not in configured and row.get("kind") in ("api", "board") and row.get("active", True):
+                store.update_source(sid, row["kind"], active=False, last_status="inactive",
+                                    last_error="not in config/sources.yaml (removed or active: false)")
 
     # classify → dedupe → store
     for j in collected:

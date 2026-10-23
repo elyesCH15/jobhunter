@@ -3,11 +3,12 @@ so there's no heavy SDK. MemoryStore implements the same interface for tests and
 from __future__ import annotations
 
 import copy
-import os
 from datetime import datetime, timezone, timedelta
 from typing import Any, Iterable, Optional
 
 import requests
+
+from .env import clean, env
 
 TABLES = ["search_profiles", "filters", "sources", "cvs", "jobs", "job_sources", "scores",
           "applications", "events", "llm_usage"]          # snapshot order (parents first)
@@ -22,8 +23,10 @@ def now_iso() -> str:
 
 class SupabaseStore:
     def __init__(self, url: Optional[str] = None, key: Optional[str] = None, session=None):
-        self.url = (url or os.environ["SUPABASE_URL"]).rstrip("/") + "/rest/v1"
-        key = key or os.environ["SUPABASE_SERVICE_KEY"]
+        url, key = clean(url) or env("SUPABASE_URL"), clean(key) or env("SUPABASE_SERVICE_KEY")
+        if not (url and key):
+            raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_KEY not set")
+        self.url = url.rstrip("/") + "/rest/v1"
         self.s = session or requests.Session()
         self.s.headers.update({"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"})
 
@@ -220,6 +223,6 @@ class MemoryStore:
 
 
 def get_store(dry_run: bool = False):
-    if dry_run or not os.getenv("SUPABASE_URL"):
+    if dry_run or not env("SUPABASE_URL"):
         return MemoryStore()
     return SupabaseStore()

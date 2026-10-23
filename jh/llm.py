@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import time
 from dataclasses import dataclass
 from typing import Callable, Optional
 
 import requests
+
+from .env import env
 
 
 @dataclass
@@ -30,11 +31,11 @@ class Provider:
 
     @property
     def key(self) -> Optional[str]:
-        return os.getenv(self.key_env) or None
+        return env(self.key_env)
 
     @property
     def model(self) -> str:
-        return os.getenv(self.model_env) or self.default_model
+        return env(self.model_env) or self.default_model
 
 
 PROVIDERS = {
@@ -70,7 +71,7 @@ def extract_json(text: str):
 class Gateway:
     def __init__(self, store=None, chain: Optional[list[str]] = None,
                  post: Callable = requests.post, sleep: Callable = time.sleep):
-        names = chain or [n.strip() for n in os.getenv("LLM_CHAIN", "gemini,groq,openrouter").split(",") if n.strip()]
+        names = chain or [n.strip() for n in env("LLM_CHAIN", "gemini,groq,openrouter").split(",") if n.strip()]
         self.providers = [PROVIDERS[n] for n in names if n in PROVIDERS]
         self.store = store
         self._post = post

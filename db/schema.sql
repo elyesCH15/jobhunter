@@ -155,8 +155,10 @@ create table if not exists llm_cache (
   created_at    timestamptz not null default now()
 );
 
--- Convenience view for the dashboard
-create or replace view job_board as
+-- Convenience view for the dashboard. security_invoker (Postgres 15+) makes the view run with
+-- the caller's rights, so RLS on the tables still applies (without it, a view runs as its owner
+-- and would bypass RLS). Existing databases: db/migrations/001_job_board_security_invoker.sql
+create or replace view job_board with (security_invoker = true) as
 select j.*, s.score, s.base_score, s.profile_id, s.cv_id, s.reasons, s.gaps,
        s.hard_filtered, s.filtered_by, s.llm_used,
        coalesce(a.status, 'new') as status, a.notes, a.updated_at as status_updated_at

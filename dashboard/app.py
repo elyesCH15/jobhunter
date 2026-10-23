@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from jh import filters as F  # noqa: E402
 from jh.config import filter_id, load_config  # noqa: E402
+from jh.env import clean, env  # noqa: E402
 from jh.score import reapply_filters  # noqa: E402
 from jh.store import MemoryStore, SupabaseStore, now_iso  # noqa: E402
 
@@ -57,10 +58,11 @@ OPERATORS = ["contains", "not_contains", "equals", "not_equals", "in", "not_in",
 
 
 def secret(name: str):
+    """Streamlit secret or env var, trimmed (a pasted trailing tab/newline breaks keys and URLs)."""
     try:
-        return st.secrets[name]
+        return clean(st.secrets[name])
     except Exception:  # noqa: BLE001 — no secrets file locally
-        return os.getenv(name)
+        return env(name)
 
 
 # ---------------- auth ----------------

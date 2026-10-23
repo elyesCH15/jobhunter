@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
       only:
-        description: "Only sources starting with (e.g. greenhouse, adzuna) — empty = all"
+        description: "Only sources starting with (e.g. greenhouse, jooble) — empty = all"
         required: false
 
 concurrency:
@@ -19,11 +19,11 @@ concurrency:
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04          # pinned: ubuntu-latest can switch images under you
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -45,7 +45,7 @@ jobs:
           python -m jh.scan $ARGS
       - name: Keep summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scan-summary
           path: scan_summary.json

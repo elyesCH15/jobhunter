@@ -3,19 +3,27 @@
 #
 # Company job boards (Greenhouse / Lever / Ashby) are the "hidden market": many startups
 # and labs post there first. Add a company by its board slug — the part of the URL after
-# boards.greenhouse.io/, jobs.lever.co/ or jobs.ashbyhq.com/. Wrong slugs don't break the
-# scan: they show as errors on the dashboard's Sources page so you can fix or remove them.
+# job-boards.greenhouse.io/ (or boards.greenhouse.io/, job-boards.eu.greenhouse.io/),
+# jobs.lever.co/ or jobs.ashbyhq.com/. Check it first by opening the API URL in a browser:
+#   Greenhouse  https://boards-api.greenhouse.io/v1/boards/<slug>/jobs
+#   Lever       https://api.lever.co/v0/postings/<slug>?mode=json
+#   Ashby       https://api.ashbyhq.com/posting-api/job-board/<slug>
+# JSON with jobs = good; 404 / "Document not found" = wrong slug or wrong platform.
+# Wrong slugs don't break the scan: they show as errors on the dashboard's Sources page.
 
 aggregators:
-  adzuna:            # https://developer.adzuna.com — free key (ADZUNA_APP_ID, ADZUNA_APP_KEY)
-    active: true
+  adzuna:            # https://developer.adzuna.com — needs ADZUNA_APP_ID / ADZUNA_APP_KEY
+    active: false    # off: real access now costs £8/month. Set true if you pay for it.
     frequency_min: 120
     countries: [gb, fr, de, nl, be, es, it, ch, at, pl]   # Adzuna has no Tunisia endpoint
     results_per_query: 50
   jooble:            # https://jooble.org/api/about — free key (JOOBLE_KEY)
     active: true
-    frequency_min: 120
-    locations: ["Tunisia", "France", "Germany", "Belgium", "Netherlands", "Switzerland", "Spain", "Remote"]
+    # The free key has a 500-request limit. One request per location × query:
+    # 3 locations × 4 queries = 12 requests, once a day ≈ 360 a month.
+    frequency_min: 1440
+    max_queries: 4   # rotated each run, so every profile query gets used over the week
+    locations: ["Tunisia", "France", "Remote"]
   remoteok:          # public JSON feed, no key
     active: true
     frequency_min: 120
@@ -26,9 +34,63 @@ aggregators:
     active: true
     frequency_min: 180
 
-company_boards:      # no key needed — slugs to verify/extend
+# Strict boards: big boards (100+ postings, mostly non-ML). Only titles that name a target
+# role are kept, and senior / staff / lead / principal / manager / head / director /
+# architect / chief / VP titles are dropped — except intern, fellow, resident, graduate,
+# new grad, early career and junior titles. Add any source id here ("platform:slug").
+strict:
+  - greenhouse:anthropic
+  - greenhouse:xai
+  - greenhouse:lilasciences
+  - greenhouse:muonspace
+  - greenhouse:planetlabs
+
+company_boards:      # no key needed — slugs checked against their API in Oct 2026 unless noted
   frequency_min: 240
-  greenhouse: [deepmind, isomorphiclabs, cradlebio, instadeep, recursionpharmaceuticals,
-               planet, pachama, sylvera, mistral, huggingface, anthropic]
-  lever: [owkin, insitro, xai, aqemia]
-  ashby: [cohere, perplexity, latentlabs, profluent]
+  greenhouse:
+    # protein / bio ML
+    - isomorphiclabs
+    - recursionpharmaceuticals
+    - profluent               # protein design LMs (Emeryville)
+    - generatebiomedicines    # generative protein design (Boston)
+    - arcinstitute            # Evo / virtual cell, computational biology (Palo Alto)
+    - lilasciences            # AI for science, AI residency (strict)
+    - owkin                   # Paris — EU-hosted board (job-boards.eu.greenhouse.io/owkin); the collector
+                              # falls back to the EU API. Board page checked; EU API not checkable from here
+    # - bioptimus8            # Paris pathology foundation models — EU board, API not verified yet
+    # climate / Earth observation
+    - planetlabs              # Planet satellite imagery (strict)
+    - muonspace               # climate-monitoring satellites (strict)
+    - tomorrow                # Tomorrow.io weather / climate intelligence
+    # frontier AI labs
+    - anthropic               # (strict)
+    - xai                     # (strict)
+  lever: []                   # none right now — the old Lever slugs all moved (see below)
+  ashby:
+    # protein / bio ML
+    - latentlabs
+    - cradlebio               # protein engineering ML (Amsterdam / Zurich)
+    - chaidiscovery           # Chai-2 molecular structure / antibody design
+    - basecamp-research       # protein & biodiversity data, foundation models (London)
+    - iambic-therapeutics     # AI drug discovery (San Diego)
+    - achira                  # molecular AI / drug discovery
+    # climate / nature AI
+    - sylvera                 # carbon credit ratings, remote sensing (London)
+    - isometric               # carbon removal registry / MRV (London)
+    - watershed               # enterprise carbon accounting (London, SF)
+    - cuspai                  # AI materials for carbon capture (Cambridge UK)
+    # LLM labs
+    - cohere
+    - perplexity
+    - mistral.ai              # Mistral (Paris) — its Lever account is empty now
+
+# Not supported yet — candidates for Phase 5 (no working public Greenhouse/Lever/Ashby API):
+#   deepmind     Greenhouse board page exists (job-boards.greenhouse.io/deepmind) but its API returns 404
+#   insitro      Greenhouse board page exists (job-boards.greenhouse.io/insitro) but its API failed when checked;
+#                try `greenhouse: [insitro]` again later
+#   instadeep    own careers site (instadeep.com/job-offer/…)
+#   huggingface  Workable (apply.workable.com/huggingface)
+#   pachama      Workable (apply.workable.com/pachama); its Lever account is empty
+#   aqemia       Teamtailor (aqemia.teamtailor.com)
+#   kayrros      Welcome to the Jungle
+#   orbitalmaterials  Notion job board

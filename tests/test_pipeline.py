@@ -4,7 +4,8 @@ import pytest
 
 from jh import filters as F
 from jh.classify import classify, detect_language
-from jh.collectors.base import Http
+from jh.collectors.base import Http, RelevanceGate
+from jh.config import profiles_from_yaml
 from jh.llm import Gateway, LLMUnavailable, extract_json
 from jh.models import Job
 from jh.scan import run, rotate
@@ -232,3 +233,122 @@ def test_snapshot_is_stable(scan, tmp_path):
     write_table(store, "jobs", tmp_path)
     assert (tmp_path / "jobs.jsonl").read_text() == first
     assert "last_seen_at" not in first
+
+
+# ---------- relevance gate ----------
+PROFILES = profiles_from_yaml()[0]
+AI_SALES_BODY = ("Sell our machine learning platform: LLM, PyTorch, deep learning, fine-tuning and MLOps "
+                 "to enterprise customers. Python a plus.")
+
+
+def test_gate_rejects_generic_titles():
+    gate = RelevanceGate(PROFILES)
+    for title in ("Office Manager", "Account Executive, AI Platform", "Research Program Manager"):
+        assert not gate(title, AI_SALES_BODY), title
+    for title in ("ML Engineer", "Research Scientist, Protein Design", "PhD Intern - Machine Learning",
+                  "Stage - Data Scientist Computational Biology (6 mois)", "Junior Geospatial Data Scientist"):
+        assert gate(title, ""), title
+
+
+def test_gate_body_fallback_needs_strong_evidence():
+    gate = RelevanceGate(PROFILES)
+    assert gate("Platform Engineer", "Train and serve models with PyTorch and Hugging Face; Docker, RAG pipelines.")
+    assert not gate("Platform Engineer", "Python services, Docker deployment, research team.")   # no ML term
+    assert not gate("Platform Engineer", "We use PyTorch.")                                     # too few keywords
+
+
+def test_strict_gate():
+    strict = RelevanceGate(PROFILES, strict=True)
+    for title in ("Senior Research Scientist", "Staff ML Engineer", "Sr. Data Scientist",
+                  "Engineering Manager, Machine Learning", "Office Manager"):
+        assert not strict(title, AI_SALES_BODY), title
+    for title in ("Machine Learning Intern", "AI Resident", "Research Engineer, Interpretability",
+                  "Senior Research Intern - ML"):
+        assert strict(title, ""), title
+    assert not strict("Platform Engineer", "PyTorch, Hugging Face, Docker, RAG, LLM")       # title only
+
+
+GREENHOUSE_BIG = {"jobs": [
+    {"id": i, "title": t, "location": {"name": "London, UK"}, "absolute_url": f"https://example.com/{i}",
+     "updated_at": "2026-10-21T08:00:00Z", "company_name": "BigLab",
+     "content": "Deep learning research with PyTorch, LLM fine-tuning and machine learning at scale."}
+    for i, t in enumerate(["Senior Research Scientist", "Staff ML Engineer", "Machine Learning Intern",
+                           "AI Resident", "Research Engineer", "Account Executive, AI Platform"], start=500)]}
+
+
+def test_strict_board_in_scan(monkeypatch, tmp_path):
+    import jh.config as cfg
+    real = cfg.read_yaml
+    sources = {"aggregators": {}, "strict": ["greenhouse:biglab"],
+               "company_boards": {"greenhouse": ["biglab", "smalllab"]}}
+    monkeypatch.setattr(cfg, "read_yaml", lambda n: sources if n == "sources.yaml" else real(n))
+
+    def get(url, params=None, headers=None, timeout=None):
+        return Resp(GREENHOUSE_BIG) if "/boards/biglab/" in url or "/boards/smalllab/" in url else Resp({}, 404)
+
+    store = MemoryStore()
+    s = run(store=store, http=Http(get=get), gateway=Gateway(store=store, chain=[]),
+            summary_path=tmp_path / "s.json", log=lambda *_: None)
+    assert s["sources"]["greenhouse:biglab"] == 3            # intern, resident, research engineer
+    assert s["sources"]["greenhouse:smalllab"] == 5          # normal gate keeps seniors (hard filters flag them)
+    assert store.load_sources()["greenhouse:biglab"]["config"]["strict"] is True
+
+
+def test_greenhouse_eu_fallback():
+    from jh.collectors.sources import greenhouse
+    urls = []
+
+    def get(url, params=None, headers=None, timeout=None):
+        urls.append(url)
+        return Resp(fx.GREENHOUSE_CRADLE) if "boards-api.eu.greenhouse.io/v1/boards/owkin" in url else Resp({}, 404)
+
+    jobs = greenhouse("owkin", Http(get=get), RelevanceGate(PROFILES))
+    assert jobs and urls[0].startswith("https://boards-api.greenhouse.io") and "eu.greenhouse" in urls[1]
+    with pytest.raises(RuntimeError, match="404"):
+        greenhouse("nope", Http(get=get), RelevanceGate(PROFILES))
+
+
+def test_removed_source_becomes_inactive(scan):
+    store, go = scan
+    store.update_source("greenhouse:deepmind", "board", last_status="error", last_error="HTTP 404")
+    go()
+    row = store.load_sources()["greenhouse:deepmind"]
+    assert row["active"] is False and row["last_status"] == "inactive"
+    assert store.load_sources()["greenhouse:cradle"]["active"] is True
+
+
+# ---------- secrets ----------
+def test_env_strips_whitespace(monkeypatch):
+    from jh.env import env
+    from jh.llm import PROVIDERS
+    from jh.store import SupabaseStore
+    monkeypatch.setenv("JOOBLE_KEY", "abc123\t")
+    monkeypatch.setenv("GROQ_API_KEY", "  gsk_x\n")
+    monkeypatch.setenv("SUPABASE_URL", "https://p.supabase.co/\t\n")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "\tsvc ")
+    monkeypatch.setenv("EMPTY_KEY", " \t ")
+    assert env("JOOBLE_KEY") == "abc123" and env("EMPTY_KEY") is None and env("EMPTY_KEY", "d") == "d"
+    assert PROVIDERS["groq"].key == "gsk_x"
+    s = SupabaseStore()
+    assert s.url == "https://p.supabase.co/rest/v1" and s.s.headers["apikey"] == "svc"
+    assert SupabaseStore("https://q.supabase.co\t", "k\t").s.headers["Authorization"] == "Bearer k"
+
+
+def test_jooble_trimmed_key_and_query_cap(monkeypatch, tmp_path):
+    import jh.config as cfg
+    real = cfg.read_yaml
+    sources = {"aggregators": {"jooble": {"active": True, "max_queries": 2, "locations": ["Tunisia", "France", "Remote"]}}}
+    monkeypatch.setattr(cfg, "read_yaml", lambda n: sources if n == "sources.yaml" else real(n))
+    monkeypatch.setenv("JOOBLE_KEY", "secret-key\t")
+    posts = []
+
+    def post(url, json=None, headers=None, timeout=None):
+        posts.append((url, json["keywords"], json["location"]))
+        return Resp({"jobs": []})
+
+    store = MemoryStore()
+    s = run(store=store, http=Http(get=fake_get, post=post), gateway=Gateway(store=store, chain=[]),
+            summary_path=tmp_path / "s.json", log=lambda *_: None)
+    assert s["sources"]["jooble"] == 0
+    assert len(posts) == 3 * 2                                    # locations × max_queries
+    assert {u for u, _, _ in posts} == {"https://jooble.org/api/secret-key"}

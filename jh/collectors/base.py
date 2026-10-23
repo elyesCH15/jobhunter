@@ -56,20 +56,78 @@ def to_iso(value: Any) -> Optional[str]:
         return None
 
 
+# Title phrases that indicate an ML / data / research-engineering role. Matched on whole words
+# after norm(); a trailing "*" means "word starting with" (biolog* → biology, biologist).
+ROLE_PHRASES = (
+    "machine learning", "deep learning", "ml engineer*", "ml scientist*", "ml research*", "mlops",
+    "ai engineer*", "ai scientist*", "ai research*", "applied ai", "generative ai", "data scientist*",
+    "data science", "computer vision", "nlp", "natural language processing", "llm*",
+    "bioinformatic*", "computational biolog*", "computational chemist*", "cheminformatic*", "protein design",
+    "geospatial", "remote sensing", "earth observation", "research engineer*", "research scientist*",
+    "applied scientist*", "phd", "doctoral",
+)
+# Early-career titles: kept on every board (strict ones too) when they look ML / research related.
+EARLY_CAREER = ("intern", "interns", "internship*", "fellow", "fellows", "fellowship*", "residency", "resident*",
+                "graduate", "new grad", "early career", "junior", "stage", "stagiaire", "alternance", "apprenti*")
+EARLY_ROLE_WORDS = ("ai", "ml", "research*", "data", "scien*", "computational", "bioinformatic*", "vision",
+                    "nlp", "llm*", "geospatial", "remote sensing", "climate", "phd", "doctoral")
+# Strict boards drop these unless the title is early-career.
+SENIOR_WORDS = ("senior", "sr", "staff", "lead", "principal", "manager", "head", "director", "architect",
+                "chief", "vp")
+# Body-keyword fallback: at least one matched keyword must be a technical ML term…
+TECH_TERMS = {"machine learning", "deep learning", "pytorch", "tensorflow", "llm", "rag", "transformers",
+              "fine tuning", "mlops", "nlp", "hugging face", "computer vision", "diffusion", "stable diffusion",
+              "segmentation", "object detection", "vision transformer", "gan", "protein language model", "esm",
+              "alphafold", "structure prediction", "bioinformatics", "computational biology", "cheminformatics",
+              "remote sensing", "earth observation", "geospatial", "google earth engine", "distributed training",
+              "cuda", "generative ai"}
+# …and the title must not be an obviously non-technical job.
+NON_ROLE_TITLE = ("account executive", "account manager", "sales*", "business development", "marketing",
+                  "recruit*", "talent", "counsel", "legal", "paralegal", "finance", "financial", "accountant",
+                  "assistant", "coordinator", "office", "customer success", "partnerships", "designer",
+                  "communications", "people", "hr", "manager")
+
+
+def _phrase_re(phrases) -> re.Pattern:
+    parts = [re.escape(p[:-1]) + r"\w*" if p.endswith("*") else re.escape(p) for p in phrases if p]
+    return re.compile(r"\b(?:" + "|".join(sorted(parts, key=len, reverse=True)) + r")\b")
+
+
 class RelevanceGate:
     """Feeds and company boards return *everything*; keep only postings that plausibly
-    match at least one profile before they reach the database."""
+    match at least one profile before they reach the database.
 
-    def __init__(self, profiles: list[dict]):
-        self.titles = {norm(t) for p in profiles for t in p.get("titles", [])}
-        self.keywords = {norm(k) for p in profiles for k in p.get("keywords", [])}
-        self.title_words = {"machine learning", "ml", "ai", "data scientist", "deep learning", "research",
-                            "computer vision", "nlp", "llm", "bioinformatics", "computational", "geospatial",
-                            "remote sensing", "phd", "scientist", "mlops"}
+    strict=True (big boards such as greenhouse:anthropic, listed under `strict:` in
+    sources.yaml): the title alone must name a target role, and senior / manager titles are
+    dropped unless they are early-career (intern, fellow, resident, graduate, junior…)."""
 
-    def __call__(self, title: str, text: str) -> bool:
-        t = " " + norm(title) + " "
-        if any(f" {x} " in t for x in self.titles | self.title_words):
+    def __init__(self, profiles: list[dict], strict: bool = False):
+        self.strict = strict
+        self.titles = {norm(t) for p in profiles for t in p.get("titles", [])} - {""}
+        self.keywords = {norm(k) for p in profiles for k in p.get("keywords", [])} - {""}
+        self.tech = {norm(k) for k in TECH_TERMS}
+        self.role_re = _phrase_re(sorted(self.titles) + list(ROLE_PHRASES))
+        self.early_re = _phrase_re(EARLY_CAREER)
+        self.early_role_re = _phrase_re(EARLY_ROLE_WORDS)
+        self.senior_re = _phrase_re(SENIOR_WORDS)
+        self.non_role_re = _phrase_re(NON_ROLE_TITLE)
+
+    def title_match(self, title: str) -> bool:
+        t = norm(title)
+        if self.role_re.search(t):
             return True
-        body = " " + norm(text[:6000]) + " "
-        return sum(f" {k} " in body for k in self.keywords) >= 3
+        return bool(self.early_re.search(t) and self.early_role_re.search(t))
+
+    def __call__(self, title: str, text: str = "") -> bool:
+        t = norm(title)
+        if self.strict:
+            if not self.title_match(t):
+                return False
+            return bool(self.early_re.search(t)) or not self.senior_re.search(t)
+        if self.title_match(t):
+            return True
+        if self.non_role_re.search(t):
+            return False
+        body = " " + norm((text or "")[:6000]) + " "
+        hits = {k for k in self.keywords if f" {k} " in body}
+        return len(hits) >= 3 and bool(hits & self.tech)
