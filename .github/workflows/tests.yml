@@ -2,18 +2,18 @@ name: Tests
 
 on:
   push:
-    paths: ["jh/**", "scripts/**", "tests/**", "config/**", "requirements.txt"]
+    paths: ["jh/**", "scripts/**", "tests/**", "config/**", "career/**", "dashboard/**", "db/**", "requirements.txt"]
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-24.04          # pinned: ubuntu-latest can switch images under you
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt pytest
+      - run: pip install -r dashboard/requirements.txt pytest pypdf    # dashboard deps ⊇ pipeline deps (+ typst, streamlit for the CV editor tests)
       - run: python -m pytest -q

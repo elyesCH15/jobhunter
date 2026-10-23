@@ -4,3 +4,5 @@ rapidfuzz>=3.6
 python-dotenv>=1.0
 streamlit>=1.40
 pandas>=2.1
+typst>=0.15
+ruamel.yaml>=0.18

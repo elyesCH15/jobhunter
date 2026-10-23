@@ -157,6 +157,19 @@ create table if not exists llm_cache (
   created_at    timestamptz not null default now()
 );
 
+-- ---------- CV editor ----------
+create table if not exists cv_versions (
+  id            uuid primary key default gen_random_uuid(),
+  job_id        text references jobs(id) on delete set null,   -- null = base CV
+  name          text,
+  language      text,                           -- en | fr
+  spec          jsonb not null default '{}',    -- CV spec (jh/cv/spec.py) — never holds phone / email
+  page_count    integer,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create index if not exists cv_versions_job_idx on cv_versions (job_id, updated_at desc);
+
 -- Convenience view for the dashboard. security_invoker (Postgres 15+) makes the view run with
 -- the caller's rights, so RLS on the tables still applies (without it, a view runs as its owner
 -- and would bypass RLS). Existing databases: run db/migrations/ in order.

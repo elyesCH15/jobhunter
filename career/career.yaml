@@ -12,6 +12,7 @@
 #   profiles   which search profiles it is most relevant to
 #              protein_ml · climate_ai · general_ml · genai_cv · research_hpc · mission_driven
 #   default    true = on in the base CV; the editor can toggle any entry per job
+#   variant_of another bullet's id — same point worded differently; the CV editor offers them in one selectbox
 #   level      skills only, 1–5, used for matching, never printed. null = you fill it in.
 
 # ---------------------------------------------------------------------------------------------
@@ -61,7 +62,7 @@ experiences:
     title: {en: AI Research Intern (Graduation Project), fr: Stagiaire Recherche en IA (Projet de fin d'études)}
     company: Euranova
     team: Explore pillar — independent research centre
-    location: Tunis, Tunisia
+    location: {en: "Tunis, Tunisia", fr: "Tunis, Tunisie"}
     start: 2026-02
     end: 2026-07            # 6 months (confirmed) — QUESTION: exact end month?
     duration_months: 6
@@ -90,6 +91,7 @@ experiences:
           de nouvelles cibles thérapeutiques.
         skills: [esm2, protein_lm, fine_tuning, lora, pytorch, huggingface, binding_sites]
       - id: eur_finetune_technical
+        variant_of: eur_finetune
         status: confirmed
         en: >-
           Built a sequence-only predictor of cryptic protein–ligand binding sites (pockets hidden in a protein's
@@ -247,7 +249,7 @@ experiences:
     status: confirmed
     title: {en: Computer Vision Intern, fr: Stagiaire en Vision par Ordinateur}
     company: Orion AI
-    location: Tunis, Tunisia
+    location: {en: "Tunis, Tunisia", fr: "Tunis, Tunisie"}
     start: 2025-06
     end: 2025-09               # QUESTION: CVs say 06–09/2025, agreement says 01/06–31/08, report says June–July
     context:
@@ -321,7 +323,7 @@ experiences:
     status: confirmed
     title: {en: Database & Data Analyst Intern, fr: Stagiaire Data Analyst & Bases de Données}
     company: IGA
-    location: Tunis, Tunisia
+    location: {en: "Tunis, Tunisia", fr: "Tunis, Tunisie"}
     start: 2024-06
     end: 2024-08
     profiles: [general_ml]
@@ -468,7 +470,7 @@ education:
         - {en: Virtual Reality, fr: Réalité virtuelle, year: RT4, option: true}
         - {en: Advanced Learning for Image and Graph Data, fr: Techniques d'apprentissage avancé pour données images et graphes, year: RT5, cv: true, skills: [graph_ml]}
         - {en: Video Analysis & Object Recognition, fr: Analyse vidéo et reconnaissance d'objets, year: RT5, cv: true, skills: [yolov8, object_detection]}
-        - {en: Image & Video Compression, Indexing and Watermarking, fr: "Compression, indexation et tatouage des images et vidéos", year: RT5}
+        - {en: "Image & Video Compression, Indexing and Watermarking", fr: "Compression, indexation et tatouage des images et vidéos", year: RT5}
       data:
         - {en: Data Analysis, fr: Analyse des données, year: RT3, cv: true, skills: [statistics]}
         - {en: Big Data, fr: Big Data, year: "RT4, RT5", cv: true, skills: [spark, hadoop]}
@@ -506,7 +508,7 @@ education:
         - {en: Computer Architecture, fr: Architecture des ordinateurs, year: RT2}
       networks_telecom:
         - {en: "Computer Networks: architecture, LAN, IP, wireless, high-speed, mobile", fr: "Réseaux : architecture, locaux, IP, sans fil, haut débit, mobiles", year: "RT2–RT4", cv: true, skills: [networking, tcp_ip]}
-        - {en: Network Administration, Monitoring & Planning, fr: Administration, surveillance et planification des réseaux, year: "RT3, RT5", skills: [networking]}
+        - {en: "Network Administration, Monitoring & Planning", fr: "Administration, surveillance et planification des réseaux", year: "RT3, RT5", skills: [networking]}
         - {en: Network Security, fr: Sécurité des réseaux, year: RT3, skills: [network_security]}
         - {en: Protocol Engineering, fr: Ingénierie des protocoles, year: RT3}
         - {en: Network Performance Modelling & Evaluation, fr: Modélisation et évaluation des performances des réseaux, year: RT4, skills: [stochastic_processes]}
@@ -565,7 +567,7 @@ skills:
   - {id: pytorch, name: PyTorch, category: ml, source: [work, project], level: 5}
   - {id: tensorflow, name: TensorFlow, category: ml, source: [coursework, project], level: 2}
   - {id: sklearn, name: scikit-learn, category: ml, source: [coursework, project], level: 3}
-  - {id: huggingface, name: Hugging Face (Transformers, PEFT, Diffusers), aliases: [transformers, peft, diffusers], category: ml, source: [work], level: 4}
+  - {id: huggingface, name: "Hugging Face (Transformers, PEFT, Diffusers)", aliases: [transformers, peft, diffusers], category: ml, source: [work], level: 4}
   - {id: fine_tuning, name: Fine-tuning large pretrained models, aliases: [model adaptation], category: ml, source: [work], level: 5}
   - {id: lora, name: LoRA / QLoRA, aliases: [parameter-efficient fine-tuning, PEFT], category: ml, source: [work], level: 5}
   - {id: transfer_learning, name: Transfer learning, category: ml, source: [work], level: 4}
@@ -586,7 +588,7 @@ skills:
   - {id: protein_structure, name: Protein structure & conformational change, category: bio, source: [work], level: 3}
   - {id: mmseqs2, name: MMseqs2 sequence clustering, category: bio, source: [work], level: 3}
   # HPC
-  - {id: hpc, name: HPC clusters (MareNostrum 5, EuroHPC), aliases: [supercomputing, high-performance computing], category: hpc, source: [work], level: 4}
+  - {id: hpc, name: "HPC clusters (MareNostrum 5, EuroHPC)", aliases: [supercomputing, high-performance computing], category: hpc, source: [work], level: 4}
   - {id: slurm, name: SLURM, category: hpc, source: [work], level: 4}
   - {id: multi_gpu, name: Multi-GPU training (H100), aliases: [GPU clusters], category: hpc, source: [work], level: 4}
   # Computer vision / generative
@@ -615,7 +617,7 @@ skills:
   - {id: remote_sensing, name: Satellite imagery / remote sensing, aliases: [earth observation], category: geo, source: [project], level: 3}
   - {id: deforestation, name: Deforestation & fragmentation metrics, category: domain, source: [project], level: 3}
   - {id: biodiversity, name: Biodiversity / conservation context, category: domain, source: [project], level: 2}
-  - {id: carbon_markets, name: Carbon markets & integrity standards (VCMI, ICVCM, SBTi), category: domain, source: [project], level: 3}
+  - {id: carbon_markets, name: "Carbon markets & integrity standards (VCMI, ICVCM, SBTi)", category: domain, source: [project], level: 3}
   # Data / MLOps
   - {id: pandas, name: Pandas, category: data, source: [work, project], level: 4}
   - {id: numpy, name: NumPy / SciPy, category: data, source: [work, project], level: 4}
@@ -637,8 +639,8 @@ skills:
   - {id: research_reproduction, name: Reproducing & auditing published results, category: research, source: [work, project], level: 4}
   # Added from the Euranova report and the INSAT study plan
   - {id: mixed_precision, name: Mixed-precision training (bfloat16), category: ml, source: [work], level: 4}
-  - {id: gpu_memory_optimisation, name: GPU memory optimisation (gradient checkpointing, SDPA), category: ml, source: [work], level: 4}
-  - {id: class_imbalance, name: Class-imbalance handling (weighted loss, AUPRC), category: ml, source: [work], level: 4}
+  - {id: gpu_memory_optimisation, name: "GPU memory optimisation (gradient checkpointing, SDPA)", category: ml, source: [work], level: 4}
+  - {id: class_imbalance, name: "Class-imbalance handling (weighted loss, AUPRC)", category: ml, source: [work], level: 4}
   - {id: probing, name: Linear probing of representations, category: ml, source: [work], level: 3}
   - {id: ablation_studies, name: Ablation studies, category: research, source: [work], level: 3}
   - {id: reproducibility, name: Reproducible research pipelines, category: research, source: [work], level: 3}

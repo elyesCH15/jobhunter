@@ -1,8 +1,9 @@
-"""JobHunter dashboard — triage, tracker, filters, profiles, sources, activity.
+"""JobHunter dashboard — triage, tracker, CV editor, filters, profiles, sources, activity.
 
 Run locally:   streamlit run dashboard/app.py
 Demo mode (no Supabase, sample jobs):   JH_DEMO=1 streamlit run dashboard/app.py
-On Streamlit Community Cloud, set SUPABASE_URL, SUPABASE_SERVICE_KEY and APP_PASSWORD in the app's Secrets.
+On Streamlit Community Cloud, set SUPABASE_URL, SUPABASE_SERVICE_KEY and APP_PASSWORD in the app's Secrets
+(plus GITHUB_TOKEN and GITHUB_REPO for the CV editor's "Save to database").
 """
 from __future__ import annotations
 
@@ -18,12 +19,14 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from jh import filters as F  # noqa: E402
 from jh.config import filter_id, load_config  # noqa: E402
 from jh.env import clean, env  # noqa: E402
 from jh.score import reapply_filters  # noqa: E402
 from jh.store import MemoryStore, SupabaseStore, now_iso  # noqa: E402
+from cv_editor import page_cv_editor  # noqa: E402
 
 st.set_page_config(page_title="JobHunter", page_icon="🎯", layout="wide")
 
@@ -107,6 +110,10 @@ def demo_store():
     os.environ.setdefault("ADZUNA_APP_ID", "demo"); os.environ.setdefault("ADZUNA_APP_KEY", "demo")
     run(store=store, http=Http(get=t.fake_get), gateway=Gateway(chain=[]), summary_path=None, log=lambda *a: None)
     cfg.read_yaml = real
+    # a few jobs further down the pipeline, so the CV editor has targets
+    top = sorted(store.board(), key=lambda r: r.get("score") or 0, reverse=True)
+    for row, status in zip(top, ["approved", "researched", "pack_ready"]):
+        store.set_status(row["id"], status)
     return store
 
 
@@ -462,10 +469,12 @@ if check_password():
         st.stop()
     with st.sidebar:
         st.title("JobHunter")
-        page = st.radio("Page", ["Triage", "Tracker", "Filters", "Profiles", "Sources", "Activity"], label_visibility="collapsed")
+        page = st.radio("Page", ["Triage", "Tracker", "CV editor", "Filters", "Profiles", "Sources", "Activity"],
+                        label_visibility="collapsed")
         if st.button("Reload data"):
             refresh(); st.rerun()
         st.divider()
     {"Triage": lambda: page_triage(board, profiles), "Tracker": lambda: page_tracker(board, profiles),
+     "CV editor": lambda: page_cv_editor(board, profiles, get_store(), secret),
      "Filters": lambda: page_filters(board), "Profiles": page_profiles, "Sources": page_sources,
      "Activity": page_activity}[page]()

@@ -24,6 +24,7 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 | Hard / soft filters, editable in the dashboard | `jh/filters.py`, `config/filters.yaml` |
 | Dashboard with password | `dashboard/app.py` |
 | Git history + restore | `scripts/snapshot.py`, `scripts/restore.py` |
+| CV editor: career database → tailored CV → PDF (Typst) | `career/`, `jh/cv/`, `dashboard/cv_editor.py` — see [CV editor](#cv-editor) |
 | Schedules | `.github/workflows/` |
 
 ## Setup (about 30 minutes, once)
@@ -37,7 +38,8 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 2. **SQL Editor → New query** → paste all of `db/schema.sql` → **Run**.
    Already have a database from an earlier version? Run the files in `db/migrations/` in order instead
    (`001` makes the `job_board` view respect Row Level Security; `002` adds the `llm_fit` and `level`
-   score columns for junior-first scoring — see [Updating to junior-first scoring](#updating-to-junior-first-scoring)).
+   score columns for junior-first scoring — see [Updating to junior-first scoring](#updating-to-junior-first-scoring);
+   `003` adds the `cv_versions` table for the [CV editor](#cv-editor)).
 3. **Project Settings → API**: copy the **Project URL** and the **service_role** key (not the anon key).
    The service key bypasses security — it only ever goes in GitHub Secrets, Streamlit Secrets and your local `.env`.
 
@@ -68,8 +70,8 @@ Then run **Snapshot database to Git** once to check the history commit works.
 
 ### 6. Dashboard
 1. share.streamlit.io → sign in with GitHub → **Create app** → your repo, branch `main`, file `dashboard/app.py`.
-2. **Advanced settings → Secrets**: paste the three lines from `.streamlit/secrets.toml.example`
-   with your values and a long password.
+2. **Advanced settings → Secrets**: paste the lines from `.streamlit/secrets.toml.example`
+   with your values and a long password (`GITHUB_TOKEN` / `GITHUB_REPO` are optional — see [CV editor](#cv-editor)).
 3. Deploy, open the URL, log in. Bookmark it on your phone.
 
 ## Daily use
@@ -82,6 +84,82 @@ Then run **Snapshot database to Git** once to check the history commit works.
 - **Sources**: which sources work, which need a key, which board slugs are wrong. Sources you remove from
   `config/sources.yaml` show as `inactive` after the next scan.
 - **Activity**: scans, status changes, and free-AI usage per provider.
+
+## CV editor
+Sidebar → **CV editor**. One page, FlowCV-style: the **live preview is on the left**, the **editing panel on the
+right**. Everything comes from your career database, `career/career.yaml` (experiences with their bullet banks,
+projects, education with coursework and degree wordings, skills, languages, headlines, summaries).
+
+**Top bar**
+- **Target**: *Base CV*, or any job you moved to *approved / researched / pack ready / form filled / submitted*.
+  Switching opens that target's latest saved version, or starts one from the database defaults:
+  - *Base CV* = every entry, bullet and course marked `default: true` (`cv: true` for courses).
+  - *A job* = the same, tilted toward the job's profile: entries whose `profiles` list it get up to 2 extra
+    relevant bullets, other entries keep their 2 most relevant default bullets, the best-matching bullet wording
+    (`variant_of`) is used, projects for that profile come first, headline / summary / degree wording are the
+    first ones listing the profile, and the CV is in French when the job is. Entries marked `to_confirm` are
+    never switched on automatically.
+- **Language** EN / FR (headings, dates like “févr. 2026 – juil. 2026”; a bullet without French text falls back
+  to English and says so), **Template** (*Compact — one page* or *Classic — roomy, up to 2 pages*),
+  **Page budget** (1 or 2 — the page shows a warning when the PDF is longer).
+- **Pages** (counted from the compiled PDF), **Version name**, **Save version**, **Export PDF**.
+- Two reserved slots: **ATS match %** and **Generate CV** — built in the next steps; nothing calls an AI yet.
+- **Saved versions for this target**: load, duplicate or delete earlier versions.
+
+**Editing panel** (tabs): *Header & summary* (headline, summary, which sections show and in what order) ·
+*Experience* · *Projects* · *Education* (degree wording, coursework) · *Skills* · *Languages & other*
+(languages, TOEFL on/off, activities). For each entry: tick to include, ↑ ↓ to reorder, then pick it under
+*Edit …* to change its title / organisation / dates and its bullets — tick, reorder, choose a wording when
+several exist, edit the text, or *Add a custom bullet*. You can also add custom entries and skills.
+Skill levels are never printed; skills print grouped by category in the order you choose.
+
+**Two save scopes for text**
+1. **This CV only** (default): typing in a box stores the change in this CV's spec as an override.
+   *Reset* drops it. The database is untouched.
+2. **Save to database**: writes the text into `career/career.yaml` so every future CV uses it. The dashboard
+   commits through the GitHub API (Streamlit Cloud can't run `git`): it reads the file and its `sha`, changes
+   only that text — comments, order and layout stay as they are (ruamel.yaml round-trip; the result is re-parsed
+   and refused if anything else changed) — and commits it as *“career: update eur_sota (en) from the CV editor”*.
+   A custom bullet saved this way is added to its entry with `status: to_confirm`. `career/personal.yaml` can
+   never be written this way.
+
+The editor reads `career.yaml` from GitHub when the secrets below are set (refreshed every 60 s, so saved edits
+show up without a redeploy), otherwise from the deployed copy.
+
+**Set up “Save to database”** (once):
+1. github.com → your avatar → **Settings → Developer settings → Personal access tokens → Fine-grained tokens →
+   Generate new token**.
+2. Name `jobhunter-cv-editor`; expiration e.g. 1 year; **Resource owner**: your account.
+3. **Repository access → Only select repositories →** `elyesCH15/jobhunter`.
+4. **Permissions → Repository permissions → Contents: Read and write**. Leave everything else at *No access*
+   (*Metadata: Read-only* is added automatically).
+5. **Generate token** and copy it (shown once).
+6. share.streamlit.io → your app → **⋮ → Settings → Secrets**, add:
+   ```toml
+   GITHUB_TOKEN = "github_pat_..."
+   GITHUB_REPO = "elyesCH15/jobhunter"
+   # GITHUB_BRANCH = "main"     # optional, default main
+   ```
+Without these secrets the button explains what to set up and keeps your edit on the CV only.
+Each database save is a commit to `main`, so Streamlit Cloud may restart the app to pick it up — save your
+CV version first. It also triggers the *Tests* workflow (about a minute of Actions time).
+
+**Storage**: CV versions are rows of the `cv_versions` table (`spec` = the CV as JSON, see `jh/cv/spec.py`).
+Existing databases: Supabase → **SQL Editor** → run `db/migrations/003_cv_versions.sql` once (safe to re-run).
+Until then the editor works but can't save versions, and the daily snapshot skips the table. After it,
+`snapshots/cv_versions.jsonl` puts every saved CV in Git history.
+
+**Personal details** (name, phone, email, links) live only in `career/personal.yaml` and are read only by
+`jh/cv/render.py` when the PDF is drawn. Specs, saved versions and `cv_text_for_llm()` (what a future AI step
+will receive) never contain them — a test checks this.
+
+**Output**: rendered with [Typst](https://typst.app) through the `typst` Python package (compiled in-process,
+no external program, ~80 ms for a first render, ~45 ms for PDF + preview after that; unchanged CVs aren't
+recompiled). ATS-safe: one column, standard headings (Summary / Experience / Projects / Education / Skills /
+Languages, or Profil / Expérience professionnelle / Projets / Formation / Compétences / Langues), real selectable
+text, no tables, icons or columns, links printed as plain text. Fonts are bundled in `jh/cv/fonts/` (Carlito,
+metric-compatible with Calibri, SIL OFL) plus Typst's built-in Libertinus Serif, so the PDF looks the same
+locally and on Streamlit Cloud.
 
 ## How the score works
 Junior roles come first: a decent junior or entry-level match ranks above a perfect-match mid-level role,
@@ -164,11 +242,11 @@ to make it strict.
 ## Running locally (optional, Windows)
 ```powershell
 py -m venv .venv; .venv\Scripts\activate
-pip install -r dashboard/requirements.txt pytest
+pip install -r dashboard/requirements.txt pytest pypdf
 copy .env.example .env    # fill in values
 python -m pytest -q        # offline tests
 python -m jh.scan --dry-run --force   # real sources, nothing saved
-$env:JH_DEMO=1; streamlit run dashboard/app.py   # dashboard with sample jobs
+$env:JH_DEMO=1; streamlit run dashboard/app.py   # dashboard with sample jobs (CV editor included)
 ```
 
 ## History and restore

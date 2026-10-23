@@ -3,6 +3,7 @@ so there's no heavy SDK. MemoryStore implements the same interface for tests and
 from __future__ import annotations
 
 import copy
+import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any, Iterable, Optional
 
@@ -12,14 +13,23 @@ from .env import clean, env
 
 NEW_SCORE_COLUMNS = ("llm_fit", "level")      # added by db/migrations/002_scores_llm_fit_level.sql
 TABLES = ["search_profiles", "filters", "sources", "cvs", "jobs", "job_sources", "scores",
-          "applications", "events", "llm_usage"]          # snapshot order (parents first)
+          "applications", "events", "llm_usage", "cv_versions"]          # snapshot order (parents first)
 CONFLICT_KEYS = {"search_profiles": "id", "filters": "id", "sources": "id", "cvs": "id", "jobs": "id",
                  "job_sources": "source_id,external_id", "scores": "job_id", "applications": "job_id",
-                 "events": "id", "llm_usage": "id", "llm_cache": "key", "jobs_raw": "source_id,external_id"}
+                 "events": "id", "llm_usage": "id", "llm_cache": "key", "jobs_raw": "source_id,external_id",
+                 "cv_versions": "id"}
+OPTIONAL_TABLES = {"cv_versions"}     # added by db/migrations/003_cv_versions.sql
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def cv_version_row(spec: dict, page_count: Optional[int] = None) -> dict:
+    """A cv_versions row from a CV spec (jh/cv/spec.py). A spec without version_id gets a new one."""
+    return {"id": spec.get("version_id") or str(uuid.uuid4()), "job_id": spec.get("job_id"),
+            "name": spec.get("name") or "CV", "language": spec.get("language") or "en", "spec": spec,
+            "page_count": page_count, "updated_at": now_iso()}
 
 
 class SupabaseStore:
@@ -157,6 +167,19 @@ class SupabaseStore:
         col = "at" if table in ("events", "llm_usage") else "id"
         return self._get(table, {"order": f"{col}.desc", "limit": str(n)}, page=n)
 
+    # ---- CV versions ----
+    def list_cv_versions(self, job_id: Optional[str] = None) -> list[dict]:
+        """Versions for one job, or base CVs (job_id null) when job_id is None. Newest first."""
+        return self._get("cv_versions", {"job_id": f"eq.{job_id}" if job_id else "is.null",
+                                         "order": "updated_at.desc"})
+
+    def save_cv_version(self, row: dict) -> dict:
+        self._upsert("cv_versions", [row])
+        return row
+
+    def delete_cv_version(self, version_id: str):
+        self._delete("cv_versions", {"id": version_id})
+
     # ---- snapshot / restore ----
     def dump(self, table: str) -> list[dict]:
         order = CONFLICT_KEYS[table].split(",")[0]
@@ -243,6 +266,17 @@ class MemoryStore:
     def recent(self, table, n=200):
         rows = self.events if table == "events" else self.llm_log if table == "llm_usage" else list(self.t[table].values())
         return list(reversed(rows))[:n]
+    def list_cv_versions(self, job_id=None):
+        rows = [r for r in self.t["cv_versions"].values() if r.get("job_id") == job_id]
+        return copy.deepcopy(sorted(rows, key=lambda r: r.get("updated_at", ""), reverse=True))
+    def save_cv_version(self, row):
+        row = copy.deepcopy(row)
+        old = self.t["cv_versions"].get((row["id"],))
+        row.setdefault("created_at", old.get("created_at") if old else now_iso())
+        row.setdefault("updated_at", now_iso())
+        self._upsert("cv_versions", [row])
+        return copy.deepcopy(self.t["cv_versions"][(row["id"],)])
+    def delete_cv_version(self, version_id): self.t["cv_versions"].pop((version_id,), None)
     def dump(self, table): return list(self.t[table].values()) if table != "events" else self.events
     def load(self, table, rows): self._upsert(table, rows)
 

@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv  # noqa: E402
 
-from jh.store import TABLES, CONFLICT_KEYS, SupabaseStore  # noqa: E402
+from jh.store import CONFLICT_KEYS, OPTIONAL_TABLES, TABLES, SupabaseStore  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent / "snapshots"
 VOLATILE = {"last_seen_at"}      # changes every scan; excluded so diffs show real changes only
@@ -36,7 +36,13 @@ def main():
     load_dotenv()
     store = SupabaseStore()
     for t in TABLES:
-        print(f"{t:<16} {write_table(store, t):>6} rows")
+        try:
+            print(f"{t:<16} {write_table(store, t):>6} rows")
+        except Exception as e:  # noqa: BLE001
+            if t not in OPTIONAL_TABLES:
+                raise
+            # table from a migration not run yet (e.g. 003_cv_versions.sql): skip, keep the rest
+            print(f"{t:<16} skipped — {str(e)[:120]} (run db/migrations/ in Supabase)")
 
 
 if __name__ == "__main__":
