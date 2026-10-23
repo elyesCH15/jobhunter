@@ -10,6 +10,7 @@ import requests
 
 from .env import clean, env
 
+NEW_SCORE_COLUMNS = ("llm_fit", "level")      # added by db/migrations/002_scores_llm_fit_level.sql
 TABLES = ["search_profiles", "filters", "sources", "cvs", "jobs", "job_sources", "scores",
           "applications", "events", "llm_usage"]          # snapshot order (parents first)
 CONFLICT_KEYS = {"search_profiles": "id", "filters": "id", "sources": "id", "cvs": "id", "jobs": "id",
@@ -82,9 +83,29 @@ class SupabaseStore:
     def upsert_jobs(self, rows): self._upsert("jobs", rows)
     def add_job_sources(self, rows): self._upsert("job_sources", rows)
     def add_raw(self, rows): self._upsert("jobs_raw", rows, ignore_duplicates=True)
-    def upsert_scores(self, rows): self._upsert("scores", rows)
+    def upsert_scores(self, rows):
+        try:
+            self._upsert("scores", rows)
+        except RuntimeError as e:
+            # Database without migration 002: keep scanning, just without the new columns.
+            if "PGRST204" not in str(e) or not any(c in str(e) for c in NEW_SCORE_COLUMNS):
+                raise
+            print("warning: scores.llm_fit / scores.level missing — run db/migrations/002_scores_llm_fit_level.sql")
+            self._upsert("scores", [{k: v for k, v in r.items() if k not in NEW_SCORE_COLUMNS} for r in rows])
+
     def ensure_applications(self, job_ids: Iterable[str]):
         self._upsert("applications", [{"job_id": j, "status": "new"} for j in job_ids], ignore_duplicates=True)
+
+    def set_seniority(self, levels: dict[str, str]):
+        """{job_id: seniority} — a PATCH per level, since an upsert would need every NOT NULL column."""
+        by_level: dict[str, list[str]] = {}
+        for jid, lvl in levels.items():
+            by_level.setdefault(lvl, []).append(jid)
+        for lvl, ids in by_level.items():
+            for i in range(0, len(ids), 100):
+                r = self.s.patch(f"{self.url}/jobs", params={"id": f"in.({','.join(ids[i:i + 100])})"},
+                                 json={"seniority": lvl}, headers={"Prefer": "return=minimal"}, timeout=30)
+                r.raise_for_status()
 
     def touch_jobs(self, job_ids: list[str]):
         ts = now_iso()
@@ -184,6 +205,10 @@ class MemoryStore:
     def upsert_scores(self, rows): self._upsert("scores", rows)
     def ensure_applications(self, job_ids):
         self._upsert("applications", [{"job_id": j, "status": "new", "status_history": []} for j in job_ids], ignore=True)
+    def set_seniority(self, levels):
+        for jid, lvl in levels.items():
+            if (jid,) in self.t["jobs"]:
+                self.t["jobs"][(jid,)]["seniority"] = lvl
     def touch_jobs(self, job_ids):
         for j in job_ids:
             if (j,) in self.t["jobs"]:

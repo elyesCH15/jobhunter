@@ -44,6 +44,7 @@ html, body, [class*="css"], .stMarkdown, button, input, textarea { font-family: 
            background: #E6EFED; color: #1D4A45; font-size: .76rem; }
 .jh-gap { background: #F6EBDD; color: #7A3F08; }
 .jh-drop { background: #F1E4E4; color: #7A2424; }
+.jh-junior { background: #D7F0DF; color: #14592F; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -54,6 +55,7 @@ STATUS_LABEL = {"new": "To triage", "shortlisted": "Maybe later", "approved": "A
                 "interview": "Interview", "offer": "Offer", "rejected": "Rejected by company", "dismissed": "Dismissed"}
 FIELDS = ["text", "title", "description", "company", "country", "region", "remote", "contract", "seniority",
           "language", "salary_min", "source"]
+JUNIOR_LEVELS = ("entry", "junior")
 OPERATORS = ["contains", "not_contains", "equals", "not_equals", "in", "not_in", "gte", "lte"]
 
 
@@ -115,9 +117,10 @@ def load_board() -> pd.DataFrame:
     if df.empty:
         return df
     for col in ("score", "first_seen_at", "posted_at", "hard_filtered", "profile_id", "cv_id", "reasons", "gaps",
-                "filtered_by", "status", "notes", "region", "contract", "seniority", "language", "remote"):
+                "filtered_by", "status", "notes", "region", "contract", "seniority", "language", "remote", "level"):
         if col not in df:
-            df[col] = None
+            df[col] = None                 # older databases (before migration 002) have no `level`
+    df["lvl"] = df["level"].where(df["level"].notna() & (df["level"] != ""), df["seniority"]).fillna("unknown")
     df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0)
     df["hard_filtered"] = df["hard_filtered"].fillna(False).astype(bool)
     df["status"] = df["status"].fillna("new")
@@ -178,9 +181,11 @@ def job_card(row, profile_names: dict, actions: bool = True):
             st.markdown(f'<p class="jh-title"><a href="{link}" target="_blank">{row.title}</a></p>', unsafe_allow_html=True)
             where = ", ".join(x for x in [row.company, row.location] if x)
             st.markdown(f'<p class="jh-meta">{where}</p>', unsafe_allow_html=True)
+            junior = row.lvl in JUNIOR_LEVELS
             chips = [profile_names.get(row.profile_id, row.profile_id or "no profile"),
-                     f"CV: {row.cv_id or 'n/a'}", row.contract, row.seniority, row.remote, row.region, row.language]
-            html = "".join(f'<span class="jh-chip">{c}</span>' for c in chips if c and c != "unknown")
+                     f"CV: {row.cv_id or 'n/a'}", row.contract, None if junior else row.lvl, row.remote, row.region, row.language]
+            html = f'<span class="jh-chip jh-junior">Junior-friendly · {row.lvl}</span>' if junior else ""
+            html += "".join(f'<span class="jh-chip">{c}</span>' for c in chips if c and c != "unknown")
             html += "".join(f'<span class="jh-chip jh-gap">{g}</span>' for g in as_list(row.gaps)[:3])
             html += "".join(f'<span class="jh-chip jh-drop">filtered: {f}</span>' for f in as_list(row.filtered_by))
             st.markdown(html, unsafe_allow_html=True)
@@ -210,6 +215,8 @@ def page_triage(df: pd.DataFrame, profiles: list[dict]):
         min_score = st.slider("Minimum score", 0, 100, 30)
         days = st.selectbox("Found in the last", [1, 3, 7, 30, 365], index=2, format_func=lambda d: f"{d} day{'s' if d > 1 else ''}")
         q = st.text_input("Search title, company, text")
+        junior_only = st.toggle("Junior-friendly only", False, help="Entry-level and junior roles (0–2 years)")
+        with_unknown = st.checkbox("Include unknown level", True, disabled=not junior_only)
         show_filtered = st.toggle("Include filtered-out jobs", False)
 
     v = df[df["status"] == "new"]
@@ -221,6 +228,8 @@ def page_triage(df: pd.DataFrame, profiles: list[dict]):
         v = v[v["region"].isin(region)]
     if contract:
         v = v[v["contract"].isin(contract)]
+    if junior_only:
+        v = v[v["lvl"].isin(JUNIOR_LEVELS + (("unknown",) if with_unknown else ()))]
     v = v[v["score"] >= min_score]
     v = v[v["seen"] >= pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)]
     if q:

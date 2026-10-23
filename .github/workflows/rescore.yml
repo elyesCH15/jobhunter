@@ -1,0 +1,39 @@
+name: Rescore all jobs
+
+on:
+  workflow_dispatch:              # "Run workflow" button in the Actions tab — run after a scoring change
+    inputs:
+      rules_only:
+        description: "Rules only — don't call the LLM (fast, saves free-tier quota)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: scan                     # shared with "Scan for jobs": a rescore and a scan never overlap
+  cancel-in-progress: false
+
+jobs:
+  rescore:
+    runs-on: ubuntu-24.04          # pinned: ubuntu-latest can switch images under you
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Rescore
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          JOOBLE_KEY: ${{ secrets.JOOBLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.rules_only }}" = "true" ]; then ARGS="$ARGS --rules-only"; fi
+          python -m jh.rescore $ARGS

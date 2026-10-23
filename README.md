@@ -20,6 +20,7 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 | Classification: language, country, region, remote, contract, seniority | `jh/classify.py` |
 | Dedupe across sites and across runs | `jh/dedupe.py` |
 | Scoring per profile + CV routing + free-LLM refinement with fallback | `jh/score.py`, `jh/llm.py` |
+| Rescore every stored job after a scoring change | `jh/rescore.py`, `.github/workflows/rescore.yml` |
 | Hard / soft filters, editable in the dashboard | `jh/filters.py`, `config/filters.yaml` |
 | Dashboard with password | `dashboard/app.py` |
 | Git history + restore | `scripts/snapshot.py`, `scripts/restore.py` |
@@ -35,7 +36,8 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 1. Create a free project at supabase.com (pick the EU region closest to you).
 2. **SQL Editor → New query** → paste all of `db/schema.sql` → **Run**.
    Already have a database from an earlier version? Run the files in `db/migrations/` in order instead
-   (`001` makes the `job_board` view respect Row Level Security).
+   (`001` makes the `job_board` view respect Row Level Security; `002` adds the `llm_fit` and `level`
+   score columns for junior-first scoring — see [Updating to junior-first scoring](#updating-to-junior-first-scoring)).
 3. **Project Settings → API**: copy the **Project URL** and the **service_role** key (not the anon key).
    The service key bypasses security — it only ever goes in GitHub Secrets, Streamlit Secrets and your local `.env`.
 
@@ -72,12 +74,62 @@ Then run **Snapshot database to Git** once to check the history commit works.
 
 ## Daily use
 - **Triage**: newest high-score jobs first, with how long ago they were posted. *Approve*, *Maybe later* or *Dismiss*.
+  Entry-level and junior jobs carry a green **Junior-friendly** chip; the sidebar toggle *Junior-friendly only*
+  hides everything else (tick *Include unknown level* to keep jobs whose level couldn't be told).
 - **Tracker**: everything past triage; change status and add notes as applications move.
 - **Filters**: add, pause or delete rules; *Re-apply to all jobs* updates jobs already found.
 - **Profiles**: edit titles, keywords, exclusions, queries, priority, or pause a profile.
 - **Sources**: which sources work, which need a key, which board slugs are wrong. Sources you remove from
   `config/sources.yaml` show as `inactive` after the next scan.
 - **Activity**: scans, status changes, and free-AI usage per provider.
+
+## How the score works
+Junior roles come first: a decent junior or entry-level match ranks above a perfect-match mid-level role,
+and senior roles sink.
+
+1. **Rule score (0–100)**, per profile, then × profile priority (high 1.0, medium 0.85, low 0.7):
+
+   | Part | Points |
+   |---|---|
+   | Title | 30 if it contains one of the profile's titles, else up to 20 for a close title |
+   | Keywords | 5 per profile keyword in the posting, +3 more if it's in the title, max 30 |
+   | Contract | 10 if it's one of the profile's contract types, 5 if unknown, 0 otherwise |
+   | Seniority | entry 30 · junior 30 · unknown 12 · mid 3 · senior 0 |
+   | Exclusions | −40 for a profile exclude term, −30 for a global exclude term |
+
+   Seniority comes from the title first (senior / lead / staff… → senior; junior / graduate → junior;
+   intern / stage / PhD → entry), then the description: explicit early-career wording ("0-2 years", "1+ years",
+   "recent graduate", "entry level", "early career", "no prior experience", "jeune diplômé",
+   "débutant accepté", "première expérience", "0 à 2 ans"…) → junior, or entry for internships, new-grad and
+   graduate programmes. Otherwise the smallest "N years" wins, a range counting by its lower bound
+   ("3-5 years" = 3): ≤ 2 junior, 3–4 mid, 5+ senior.
+2. **Free-LLM refinement** for jobs scoring ≥ 35: the AI is told junior suitability matters most and must
+   give fit ≤ 40 to anything asking for more than 2 years or senior / lead / staff level. Score =
+   0.4 × rule score + 0.6 × AI fit. The AI also reports the level; when the rules said *unknown*, the AI's
+   level is used (and saved on the job).
+3. **Career adjustment**: entry / junior +10 · unknown 0 · mid −10 · senior −25, shown on the card
+   ("junior role: +10 pts", "mid-level role: −10 pts").
+4. **Soft filters** (`Prefer remote +5`…) are added last. Hard filters (e.g. *Drop senior roles*) hide a job.
+
+Example (same profiles, rules only): a junior "Machine Learning Engineer" with no profile keywords ends at
+**80**; a mid-level (3–5 years) protein ML engineer matching every keyword ends at **63**; the senior
+version of that job ends at **45** — and is hidden anyway by the *Drop senior roles* filter.
+
+In the database: `scores.base_score` = rule score, `llm_fit` = raw AI fit, `level` = level used for the
+adjustment, `pre_filter_score` = after blend + adjustment, `score` = final.
+
+## Updating to junior-first scoring
+1. Supabase → **SQL Editor** → paste `db/migrations/002_scores_llm_fit_level.sql` → **Run**
+   (adds `scores.llm_fit` / `scores.level` and exposes them on the `job_board` view; safe to re-run).
+   Scans keep working before you do this — the two new columns are just skipped, with a warning in the log.
+2. Push the new code.
+3. Repo → **Actions → Rescore all jobs → Run workflow**. It re-classifies the seniority of every stored job
+   and scores it again with the current profiles, filters and AI. Your statuses and notes are not touched.
+   It shares the scan's queue, so it never runs at the same time as a scan. Tick *Rules only* to skip
+   the AI (fast, saves free-tier quota — but levels the AI filled in before go back to *unknown*).
+   Locally: `python -m jh.rescore` (or `python scripts/rescore.py`), add `--dry-run` to save nothing.
+
+Run **Rescore all jobs** again whenever you change the scoring code or edit profiles heavily.
 
 ## Adding company boards (hidden market)
 Company boards are listed in `config/sources.yaml` under `company_boards`, one slug per line:
@@ -130,6 +182,8 @@ new Supabase project → run `db/schema.sql` → update the secrets → `python 
 - GitHub pauses scheduled workflows after 60 days without repo activity; the daily snapshot commit prevents that.
 - Supabase free projects pause after a week of no use; the 2-hourly scan keeps it awake.
 - LLM: only jobs scoring ≥ 35 on the rules go to the AI, 8 per request, cached — a few dozen calls a day.
+  A full rescore sends every stored job above 35 again (one call per 8 jobs); if the free tiers run out
+  midway, the rest keep their rule-only scores — run it again later or use *Rules only*.
 
 ## Next phases
 2 Speed: Telegram alerts, fast lane, Gmail job-alert parsing · 3 Research button, ATS keywords, cover-letter ideas ·

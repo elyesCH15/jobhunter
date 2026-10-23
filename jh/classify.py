@@ -115,7 +115,18 @@ CONTRACT_PATTERNS = [
 
 _SENIOR = re.compile(r"\b(senior|sr|lead|principal|staff|head of|director|manager|architect|chief|vp)\b")
 _JUNIOR = re.compile(r"\b(junior|jr|graduate|entry level|entry-level|débutant|jeune diplômé|new grad|early career|associate)\b")
-_YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:years|yrs|ans|jahre)")
+# Experience in years, matched on norm()-ed text ("3-5 years" → "3 5 years", "1+ ans" → "1 ans").
+_UNIT = r"(?:years?|yrs?|ans?|annees?|jahre?n?)"
+_YEARS_RANGE = re.compile(rf"\b(\d{{1,2}}) (?:to |a |and |or |bis |et )?(\d{{1,2}}) {_UNIT}\b")
+_YEARS = re.compile(rf"\b(\d{{1,2}}) {_UNIT}\b")
+# Explicit early-career wording in the description. These beat a stray "5+ years" elsewhere.
+_DESC_ENTRY = re.compile(r"\b(new grads?|new graduates?|graduate (?:programme|program|scheme)|"
+                         r"(?:this|the|our) internship|internship (?:position|role|offer|opportunity)|"
+                         r"stagiaire|stage de fin d etudes|stage pfe|offre de stage)\b")
+_DESC_JUNIOR = re.compile(r"\b((?:0|1) (?:to |a |or )?(?:1|2) " + _UNIT + r"|up to (?:1|2) " + _UNIT +
+                          r"|less than (?:1|2) " + _UNIT + r"|1 " + _UNIT + r" (?:of )?(?:\w+ )?(?:experience|d experience)"
+                          r"|recent graduates?|entry level|early career|no prior experience|first experience"
+                          r"|jeunes? diplomes?|debutants? acceptes?|premiere experience)\b")
 
 
 def classify_contract(job: Job) -> str:
@@ -141,7 +152,13 @@ def classify_seniority(job: Job) -> str:
         return "senior"
     if _JUNIOR.search(title) or re.search(r"\b(intern|stage|phd|stagiaire|thèse)\b", title):
         return "entry" if re.search(r"\b(intern|stage|phd|graduate|stagiaire|thèse|entry)\b", title) else "junior"
-    years = [int(y) for y in _YEARS.findall(job.description.lower()[:6000]) if int(y) < 30]
+    desc = norm(job.description[:6000])
+    if _DESC_ENTRY.search(desc):
+        return "entry"
+    if _DESC_JUNIOR.search(desc):
+        return "junior"
+    desc = _YEARS_RANGE.sub(lambda m: f"{m.group(1)} years", desc)     # a range counts by its lower bound
+    years = [int(y) for y in _YEARS.findall(desc) if int(y) < 30]
     if years:
         m = min(years)
         if m >= 5:

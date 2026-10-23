@@ -104,7 +104,7 @@ create table if not exists scores (
   job_id        text primary key references jobs(id) on delete cascade,
   score         real not null,                  -- 0..100 after priority + soft filters
   base_score    real,                           -- rule score (priority-weighted)
-  pre_filter_score real,                        -- after LLM blend, before soft filters
+  pre_filter_score real,                        -- after LLM blend + career-level adjustment, before soft filters
   profile_id    text,
   profile_scores jsonb not null default '{}',
   cv_id         text,
@@ -113,6 +113,8 @@ create table if not exists scores (
   hard_filtered boolean not null default false,
   filtered_by   jsonb not null default '[]',
   llm_used      text,                           -- provider/model or null (rules only)
+  llm_fit       real,                           -- raw LLM fit 0..100, null when rules only
+  level         text,                           -- entry | junior | mid | senior | unknown (rules, else LLM)
   scored_at     timestamptz not null default now()
 );
 create index if not exists scores_score_idx on scores (score desc);
@@ -157,11 +159,12 @@ create table if not exists llm_cache (
 
 -- Convenience view for the dashboard. security_invoker (Postgres 15+) makes the view run with
 -- the caller's rights, so RLS on the tables still applies (without it, a view runs as its owner
--- and would bypass RLS). Existing databases: db/migrations/001_job_board_security_invoker.sql
+-- and would bypass RLS). Existing databases: run db/migrations/ in order.
 create or replace view job_board with (security_invoker = true) as
 select j.*, s.score, s.base_score, s.profile_id, s.cv_id, s.reasons, s.gaps,
        s.hard_filtered, s.filtered_by, s.llm_used,
-       coalesce(a.status, 'new') as status, a.notes, a.updated_at as status_updated_at
+       coalesce(a.status, 'new') as status, a.notes, a.updated_at as status_updated_at,
+       s.pre_filter_score, s.llm_fit, s.level
 from jobs j
 left join scores s on s.job_id = j.id
 left join applications a on a.job_id = j.id;

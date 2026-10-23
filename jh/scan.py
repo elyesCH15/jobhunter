@@ -3,6 +3,7 @@
 1. load profiles / filters / sources   2. run every source that's due
 3. classify + dedupe                    4. store jobs, sources, raw payloads
 5. score NEW jobs (rules + free LLM)    6. log events, write scan_summary.json
+(python -m jh.rescore re-scores every stored job after a scoring change)
 """
 from __future__ import annotations
 
@@ -126,8 +127,11 @@ def run(store=None, http: Http | None = None, gateway: Gateway | None = None, fo
                            for cid, js in groups.items() for j in js])
     store.add_raw([{"source_id": j.source_id, "external_id": j.external_id, "payload": j.raw} for j in collected])
 
+    rules_seniority = {j.fingerprint: j.seniority for j in new_jobs}
     results = score_jobs(new_jobs, active_profiles, global_exclude, rules, gateway)
     store.upsert_scores([r.to_row() for r in results])
+    store.set_seniority({j.fingerprint: j.seniority for j in new_jobs              # levels the LLM filled in
+                         if j.seniority != rules_seniority[j.fingerprint]})
     store.ensure_applications([j.fingerprint for j in new_jobs])
 
     by_id = {r.job_id: r for r in results}

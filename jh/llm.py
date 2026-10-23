@@ -71,7 +71,7 @@ def extract_json(text: str):
 class Gateway:
     def __init__(self, store=None, chain: Optional[list[str]] = None,
                  post: Callable = requests.post, sleep: Callable = time.sleep):
-        names = chain or [n.strip() for n in env("LLM_CHAIN", "gemini,groq,openrouter").split(",") if n.strip()]
+        names = chain if chain is not None else [n.strip() for n in env("LLM_CHAIN", "gemini,groq,openrouter").split(",") if n.strip()]
         self.providers = [PROVIDERS[n] for n in names if n in PROVIDERS]
         self.store = store
         self._post = post

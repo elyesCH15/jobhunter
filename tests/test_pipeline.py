@@ -184,14 +184,23 @@ def test_llm_refines_scores(scan, monkeypatch):
 
     def post(url, headers=None, json=None, timeout=None):
         jobs = __import__("json").loads(json["messages"][1]["content"])
-        out = [{"id": j["id"], "fit": 95, "profile": "protein_ml", "reasons": ["strong PLM match"], "gaps": []} for j in jobs]
+        out = [{"id": j["id"], "fit": 95, "profile": "protein_ml", "level": "junior",
+                "reasons": ["strong PLM match"], "gaps": []} for j in jobs]
         return Resp({"choices": [{"message": {"content": __import__("json").dumps(out)}}]})
 
     import tempfile, pathlib
     run(store=store, http=Http(get=fake_get), gateway=Gateway(store=store, chain=["groq"], post=post),
         summary_path=pathlib.Path(tempfile.mkdtemp()) / "s.json", log=lambda *_: None)
     scored = [r for r in store.board() if r.get("llm_used")]
-    assert scored and all("strong PLM match" in r["reasons"] for r in scored)
+    assert scored and all("strong PLM match" in r["reasons"] and r["llm_fit"] == 95 for r in scored)
+    # rules couldn't tell the Cradle job's level → the LLM's "junior" is stored on the job and drives +10
+    cradle = next(r for r in store.board() if "Protein Language" in r["title"])
+    assert cradle["seniority"] == "junior" and cradle["level"] == "junior"
+    assert "junior role: +10 pts" in cradle["reasons"]
+    assert cradle["pre_filter_score"] == round(0.4 * cradle["base_score"] + 0.6 * 95 + 10, 1)
+    # the Owkin internship was "entry" by rules — the LLM doesn't override it
+    owkin = next(r for r in store.board() if r["title"].startswith("Stage - Data Scientist"))
+    assert owkin["seniority"] == "entry" and owkin["level"] == "entry"
 
 
 def test_helpers():
@@ -352,3 +361,201 @@ def test_jooble_trimmed_key_and_query_cap(monkeypatch, tmp_path):
     assert s["sources"]["jooble"] == 0
     assert len(posts) == 3 * 2                                    # locations × max_queries
     assert {u for u, _, _ in posts} == {"https://jooble.org/api/secret-key"}
+
+
+# ---------- seniority ----------
+@pytest.mark.parametrize("desc,level", [
+    ("You have 0-2 years of experience with PyTorch.", "junior"),
+    ("0 to 2 years of experience.", "junior"),
+    ("1-2 years experience in ML.", "junior"),
+    ("Up to 2 years of experience.", "junior"),
+    ("Less than 2 years of industry experience.", "junior"),
+    ("1+ years of experience in Python.", "junior"),
+    ("Recent graduates welcome.", "junior"),
+    ("This is an entry-level position.", "junior"),
+    ("Entry level role in our ML team.", "junior"),
+    ("Early career researchers are encouraged to apply.", "junior"),
+    ("No prior experience required.", "junior"),
+    ("A first experience with deep learning is a plus.", "junior"),
+    ("Jeune diplômé(e) d'une école d'ingénieur.", "junior"),
+    ("Débutant accepté.", "junior"),
+    ("Une première expérience en machine learning est un plus.", "junior"),
+    ("Vous avez 0 à 2 ans d'expérience.", "junior"),
+    ("Vous avez 1 à 2 ans d’expérience.", "junior"),
+    ("Join our new grad cohort.", "entry"),
+    ("Our Graduate Programme lasts two years.", "entry"),
+    ("This internship lasts 6 months.", "entry"),
+    ("Stage de fin d'études de 6 mois.", "entry"),
+    ("2-4 years of experience.", "junior"),               # ranges count by their lower bound
+    ("3-5 years of experience.", "mid"),
+    ("3 to 5 years of experience.", "mid"),
+    ("Vous avez 3 à 5 ans d'expérience.", "mid"),
+    ("4+ years of experience.", "mid"),
+    ("5-8 years of experience.", "senior"),
+    ("5+ ans d'expérience.", "senior"),
+    ("We need 7+ years of experience.", "senior"),
+    ("0-2 years of experience; 5+ years with Kubernetes is a plus.", "junior"),   # explicit junior wins
+    ("Prior internship a plus; 3+ years of experience.", "mid"),
+    ("Work in an early-stage startup.", "unknown"),
+    ("Build models with PyTorch.", "unknown"),
+])
+def test_seniority_from_description(desc, level):
+    from jh.classify import classify_seniority
+    assert classify_seniority(Job("t", "1", "Machine Learning Engineer", description=desc)) == level
+
+
+def test_seniority_title_rules_come_first():
+    from jh.classify import classify_seniority
+    assert classify_seniority(Job("t", "1", "Senior ML Engineer", description="0-2 years of experience")) == "senior"
+    assert classify_seniority(Job("t", "2", "ML Intern", description="5+ years of experience")) == "entry"
+    assert classify_seniority(Job("t", "3", "Junior Data Scientist", description="3-5 years")) == "junior"
+
+
+# ---------- junior-first scoring ----------
+RANK_PROFILES = [
+    {"id": "protein_ml", "name": "Protein ML", "priority": "high", "titles": ["machine learning engineer"],
+     "keywords": ["protein", "esm", "pytorch", "hpc", "structure prediction", "alphafold"], "contracts": ["full_time"]},
+    {"id": "general_ml", "name": "General ML", "priority": "medium", "titles": ["machine learning engineer"],
+     "keywords": ["python", "llm", "rag", "docker", "mlops", "transformers"], "contracts": ["full_time"]},
+]
+PERFECT = "Protein language models (ESM, AlphaFold), structure prediction, PyTorch on HPC. Full-time."
+
+
+def rank_jobs():
+    return [classify(Job("t", "jr", "Machine Learning Engineer", location="Paris",
+                         description="0-2 years of experience. Python and LLM work. Full-time.")),
+            classify(Job("t", "mid", "Machine Learning Engineer, Protein", location="Paris",
+                         description="3-5 years of experience. " + PERFECT)),
+            classify(Job("t", "sr", "Senior Machine Learning Engineer, Protein", location="Paris",
+                         description="7+ years of experience. " + PERFECT))]
+
+
+def test_junior_outranks_mid_perfect_match_and_senior_sinks():
+    from jh.score import rule_score, score_jobs
+    jr, mid, sr = rank_jobs()
+    assert (jr.seniority, mid.seniority, sr.seniority) == ("junior", "mid", "senior")
+    _, jr_reasons, _ = rule_score(jr, RANK_PROFILES[1], [])
+    _, mid_reasons, mid_gaps = rule_score(mid, RANK_PROFILES[0], [])
+    kw = lambda rs: len(next(x for x in rs if x.startswith("keywords")).split(","))  # noqa: E731
+    assert kw(jr_reasons) < kw(mid_reasons) and "asks for ~3–4 years experience" in mid_gaps
+    res = {r.job_id: r for r in score_jobs([jr, mid, sr], RANK_PROFILES, [], [])}
+    a, b, c = (res[j.fingerprint] for j in (jr, mid, sr))
+    assert a.score > b.score > c.score
+    assert (a.level, b.level, c.level) == ("junior", "mid", "senior")
+    assert "junior role: +10 pts" in a.reasons
+    assert "mid-level role: −10 pts" in b.gaps and "senior role: −25 pts" in c.gaps
+    assert c.score <= b.score - 15 and c.pre_filter_score == c.score   # no soft filters here
+
+
+def test_rule_score_weights():
+    from jh.score import rule_score
+    p = {"id": "x", "titles": ["machine learning engineer"], "contracts": ["full_time"],
+         "keywords": ["pytorch", "llm", "rag", "docker", "mlops", "python", "hpc"]}
+    full = Job("t", "1", "Machine Learning Engineer", description="pytorch llm rag docker mlops python hpc")
+    full.contract, full.seniority = "full_time", "junior"
+    assert rule_score(full, p, [])[0] == 100                            # 30 + 30 + 10 + 30
+    for level, pts in (("entry", 100), ("unknown", 82), ("mid", 73), ("senior", 70)):
+        full.seniority = level
+        assert rule_score(full, p, [])[0] == pts, level
+    full.seniority = "senior"
+    assert "senior role (5+ years experience)" in rule_score(full, p, [])[2]
+
+
+def llm_gateway(monkeypatch, answer):
+    monkeypatch.setenv("GROQ_API_KEY", "k")
+
+    def post(url, headers=None, json=None, timeout=None):
+        jobs = __import__("json").loads(json["messages"][1]["content"])
+        out = [{"id": j["id"], "profile": "general_ml", "reasons": ["ok"], "gaps": [], **answer(j)} for j in jobs]
+        return Resp({"choices": [{"message": {"content": __import__("json").dumps(out)}}]})
+    return Gateway(chain=["groq"], post=post)
+
+
+def test_llm_level_fills_unknown_seniority(monkeypatch):
+    from jh.score import LLM_SYSTEM, score_jobs
+    assert "most important criterion" in LLM_SYSTEM.lower() and '"level"' in LLM_SYSTEM
+    a = classify(Job("t", "a", "Machine Learning Engineer", location="Paris", description="Python, LLM, RAG. Full-time."))
+    b = classify(Job("t", "b", "ML Engineer, LLM", location="Paris", description="Python, LLM, RAG, Docker. Full-time."))
+    known = classify(Job("t", "c", "Machine Learning Engineer", location="Lyon",
+                         description="3-5 years of experience. Python, LLM, RAG. Full-time."))
+    assert a.seniority == b.seniority == "unknown" and known.seniority == "mid"
+    levels = {a.fingerprint: "junior", b.fingerprint: "senior", known.fingerprint: "junior"}
+    gw = llm_gateway(monkeypatch, lambda j: {"fit": 70, "level": levels[j["id"]]})
+    rules = [F.Rule("Drop senior roles", "hard", "seniority", "not_in", ["senior"])]
+    res = {r.job_id: r for r in score_jobs([a, b, known], RANK_PROFILES, [], rules, gw)}
+    ra, rb, rk = res[a.fingerprint], res[b.fingerprint], res[known.fingerprint]
+    assert ra.llm_fit == 70 and ra.level == "junior" and a.seniority == "junior"
+    assert ra.score == round(0.4 * ra.base_score + 0.6 * 70 + 10, 1) and "junior role: +10 pts" in ra.reasons
+    # LLM says senior → job becomes senior, −25, and the senior hard filter now catches it
+    assert rb.level == b.seniority == "senior" and rb.hard_filtered and rb.filtered_by == ["Drop senior roles"]
+    assert rb.score == round(max(0, 0.4 * rb.base_score + 0.6 * 70 - 25), 1)
+    # rule-based level wins when the rules know it
+    assert rk.level == known.seniority == "mid" and "mid-level role: −10 pts" in rk.gaps
+    assert ra.score > rk.score
+
+
+def test_reapply_filters_uses_llm_level():
+    from jh.score import reapply_filters
+    row = {"id": "j1", "title": "ML Engineer", "description": "x", "seniority": "unknown", "level": "senior",
+           "score": 50, "pre_filter_score": 50, "reasons": ["junior role: +10 pts", "Prefer remote (+5)"]}
+    rules = [F.Rule("Drop senior roles", "hard", "seniority", "not_in", ["senior"])]
+    u = reapply_filters([row], rules)[0]
+    assert u["hard_filtered"] and u["score"] == 50 and u["reasons"] == ["junior role: +10 pts"]
+
+
+# ---------- rescore ----------
+def test_rescore_all_jobs(scan):
+    from jh.rescore import run as rescore
+    store, go = scan
+    go()
+    before = {r["id"]: r for r in store.board()}
+    cradle = next(r for r in before.values() if "Protein Language" in r["title"])
+    assert cradle["seniority"] == "unknown"
+    store.set_status(cradle["id"], "approved")
+    # old scoring left a stale score and an old classification behind
+    store.t["jobs"][(cradle["id"],)]["description"] += " You have 0-2 years of experience."
+    store.t["scores"][(cradle["id"],)].update(score=1.0, level=None, pre_filter_score=1.0)
+    geo = next(r for r in before.values() if r["title"] == "Junior Geospatial Data Scientist")
+    store.t["jobs"][(geo["id"],)]["seniority"] = "senior"
+
+    s = rescore(store=store, gateway=Gateway(store=store, chain=[]), log=lambda *_: None)
+    after = {r["id"]: r for r in store.board()}
+    assert s["rescored"] == len(before) and s["seniority_changed"] == 2
+    assert after[cradle["id"]]["seniority"] == "junior" and after[cradle["id"]]["level"] == "junior"
+    # seniority 12 → 30 pts (protein_ml is high priority, ×1.0) and +10 career adjustment
+    assert after[cradle["id"]]["pre_filter_score"] == min(100, round(before[cradle["id"]]["pre_filter_score"] + 18 + 10, 1))
+    assert after[cradle["id"]]["score"] > before[cradle["id"]]["score"]
+    assert after[cradle["id"]]["status"] == "approved"                     # statuses untouched
+    assert after[geo["id"]]["seniority"] == "junior" and after[geo["id"]]["score"] == geo["score"]
+    for jid, r in before.items():                                          # nothing else moved
+        if jid not in (cradle["id"], geo["id"]):
+            assert after[jid]["score"] == r["score"] and after[jid]["hard_filtered"] == r["hard_filtered"]
+    assert store.events[-1]["kind"] == "rescore"
+
+
+def test_rescore_script_entry_point(monkeypatch):
+    import scripts.rescore as script
+    import jh.rescore as R
+    seen = {}
+    monkeypatch.setattr(R, "run", lambda store=None, gateway=None, log=print: seen.update(store=store, gw=gateway))
+    assert script.main(["--dry-run", "--rules-only"]) == 0
+    assert isinstance(seen["store"], MemoryStore) and seen["gw"].providers == []
+
+
+def test_scores_upsert_without_migration_002():
+    from jh.store import SupabaseStore
+    sent = []
+
+    class Sess:
+        headers = {}
+
+        def post(self, url, params=None, json=None, headers=None, timeout=None):
+            sent.append(json)
+            if "level" in json[0]:
+                return type("R", (), {"status_code": 400, "text": '{"code":"PGRST204","message":"Could not find '
+                                      'the \'level\' column of \'scores\' in the schema cache"}'})()
+            return type("R", (), {"status_code": 201, "text": ""})()
+
+    SupabaseStore("https://p.supabase.co", "k", session=Sess()).upsert_scores(
+        [{"job_id": "a", "score": 50, "llm_fit": None, "level": "junior"}])
+    assert sent[-1] == [{"job_id": "a", "score": 50}]

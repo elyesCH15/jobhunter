@@ -24,6 +24,11 @@ DEFAULT_CV_GROUPS = {
 LLM_THRESHOLD = float(os.getenv("LLM_SCORE_THRESHOLD", "35"))   # only promising jobs go to the LLM
 LLM_BATCH = int(os.getenv("LLM_BATCH_SIZE", "8"))
 
+LEVELS = ("entry", "junior", "mid", "senior", "unknown")
+# Career-level adjustment, applied after the rule/LLM blend: junior roles first, senior roles sink.
+CAREER_ADJ = {"entry": 10, "junior": 10, "unknown": 0, "mid": -10, "senior": -25}
+CAREER_LABEL = {"entry": "entry-level role", "junior": "junior role", "mid": "mid-level role", "senior": "senior role"}
+
 
 @dataclass
 class ScoreResult:
@@ -38,7 +43,9 @@ class ScoreResult:
     hard_filtered: bool = False
     filtered_by: list = field(default_factory=list)
     llm_used: str | None = None
-    pre_filter_score: float | None = None
+    pre_filter_score: float | None = None    # after blend + career adjustment, before soft filters
+    llm_fit: float | None = None             # raw LLM fit (0–100), None when rules only
+    level: str | None = None                 # career level used for the adjustment (rules, else LLM)
 
     def to_row(self) -> dict:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -55,21 +62,21 @@ def rule_score(job: Job, profile: dict, global_exclude: list[str]) -> tuple[floa
     reasons, gaps = [], []
     s = 0.0
 
-    # title (max 40)
+    # title (max 30)
     exact = [t for t in profile.get("titles", []) if _phrase_in(t, title)]
     if exact:
-        s += 40
+        s += 30
         reasons.append(f"title matches '{exact[0]}'")
     else:
         best = max((fuzz.token_set_ratio(norm(t), title) for t in profile.get("titles", [])), default=0)
-        s += max(0.0, (best - 50) / 50) * 25
+        s += max(0.0, (best - 50) / 50) * 20
         if best >= 75:
             reasons.append("title close to target roles")
 
-    # keywords (max 40)
+    # keywords (max 30)
     kw_hits = [k for k in profile.get("keywords", []) if _phrase_in(k, body)]
     kw_title = [k for k in kw_hits if _phrase_in(k, title)]
-    s += min(40, 6 * len(kw_hits) + 4 * len(kw_title))
+    s += min(30, 5 * len(kw_hits) + 3 * len(kw_title))
     if kw_hits:
         reasons.append("keywords: " + ", ".join(kw_hits[:6]))
     else:
@@ -83,10 +90,12 @@ def rule_score(job: Job, profile: dict, global_exclude: list[str]) -> tuple[floa
     else:
         gaps.append(f"contract '{job.contract}' not in profile")
 
-    # seniority (max 10)
-    s += {"entry": 10, "junior": 10, "unknown": 6, "mid": 2}.get(job.seniority, 0)
+    # seniority (max 30) — the candidate graduated in 2026, so junior suitability weighs as much as the title
+    s += {"entry": 30, "junior": 30, "unknown": 12, "mid": 3}.get(job.seniority, 0)
     if job.seniority == "mid":
         gaps.append("asks for ~3–4 years experience")
+    elif job.seniority == "senior":
+        gaps.append("senior role (5+ years experience)")
 
     # exclusions
     ex = [e for e in profile.get("exclude", []) if _phrase_in(e, body)]
@@ -102,13 +111,21 @@ def rule_score(job: Job, profile: dict, global_exclude: list[str]) -> tuple[floa
 
 
 LLM_SYSTEM = """You screen job postings for one candidate. Be strict and factual.
-Candidate: early-career ML engineer (5-year engineering degree, Tunisia, 2026). Experience: fine-tuning
-protein language models (ESM2-15B) for cryptic binding site prediction on a EuroHPC supercomputer;
-Stable Diffusion for home staging; RAG system on carbon-market standards; satellite forest
-fragmentation analysis. Languages: Arabic, English, French. Open to relocation and remote.
+Candidate: early-career ML engineer (5-year engineering degree, Tunisia, graduated 2026, no full-time
+experience beyond internships). Experience: fine-tuning protein language models (ESM2-15B) for cryptic
+binding site prediction on a EuroHPC supercomputer; Stable Diffusion for home staging; RAG system on
+carbon-market standards; satellite forest fragmentation analysis. Languages: Arabic, English, French.
+Open to relocation and remote.
 Profiles: {profiles}
+The MOST important criterion is whether the job is open to a junior / recent graduate.
+- If the posting requires more than 2 years of experience, or is senior / lead / staff / principal /
+  manager level, fit MUST be <= 40, however well the topic matches.
+- Explicit junior, entry-level, graduate, new-grad, intern or PhD roles that match a profile should score high.
 For EACH job return an object: {{"id": <job id>, "fit": 0-100, "profile": <best profile id>,
-"reasons": [<=3 short strings], "gaps": [<=3 short strings: missing requirements]}}.
+"level": "entry"|"junior"|"mid"|"senior"|"unknown", "reasons": [<=3 short strings],
+"gaps": [<=3 short strings: missing requirements]}}.
+level = experience the posting asks for: entry (intern / graduate / new grad), junior (0-2 years),
+mid (3-4 years), senior (5+ years or senior / lead / staff title), unknown (not stated).
 fit = how strong this candidate's application would be AND how well the job matches a profile.
 Reply with a JSON array only."""
 
@@ -118,10 +135,23 @@ def _llm_payload(job: Job) -> dict:
             "contract": job.contract, "seniority": job.seniority, "description": job.description[:2500]}
 
 
+def career_adjust(r: ScoreResult) -> None:
+    """Junior roles first: shift the blended score by career level and say so in reasons / gaps."""
+    adj = CAREER_ADJ.get(r.level or "unknown", 0)
+    r.score = round(max(0.0, min(100.0, r.score + adj)), 1)
+    if adj > 0:
+        r.reasons.append(f"{CAREER_LABEL[r.level]}: +{adj} pts")
+    elif adj < 0:
+        r.gaps.append(f"{CAREER_LABEL[r.level]}: −{-adj} pts")
+
+
 def score_jobs(jobs: list[Job], profiles: list[dict], global_exclude: list[str], rules: list[F.Rule],
                gateway: Gateway | None = None) -> list[ScoreResult]:
+    """Score jobs. When the rules can't tell the seniority and the LLM gives a level, the job's
+    `seniority` is set to it (callers persist that) and the filters are re-checked."""
     active = [p for p in profiles if p.get("active", True)]
     results: dict[str, ScoreResult] = {}
+    by_id = {j.fingerprint: j for j in jobs}
 
     for job in jobs:
         per = {}
@@ -138,7 +168,7 @@ def score_jobs(jobs: list[Job], profiles: list[dict], global_exclude: list[str],
         results[job.fingerprint] = ScoreResult(
             job_id=job.fingerprint, score=round(best[1], 1), base_score=round(best[1], 1), profile_id=pid,
             profile_scores=per, cv_id=cv, reasons=best[2] + hits, gaps=best[3],
-            hard_filtered=not kept, filtered_by=failures)
+            hard_filtered=not kept, filtered_by=failures, level=job.seniority or "unknown")
         results[job.fingerprint]._delta = delta  # type: ignore[attr-defined]
 
     # LLM refinement for kept, promising jobs
@@ -162,19 +192,35 @@ def score_jobs(jobs: list[Job], profiles: list[dict], global_exclude: list[str],
                     fit = float(item.get("fit", r.base_score))
                 except (TypeError, ValueError):
                     continue
-                r.score = round(0.4 * r.base_score + 0.6 * max(0, min(100, fit)), 1)
+                fit = max(0.0, min(100.0, fit))
+                r.llm_fit = fit
+                r.score = round(0.4 * r.base_score + 0.6 * fit, 1)
+                level = str(item.get("level") or "").strip().lower()
+                job = by_id[r.job_id]
+                if r.level == "unknown" and level in LEVELS and level != "unknown":
+                    r.level = job.seniority = level            # LLM fills what the rules couldn't tell
+                    kept, delta, failures, hits = F.apply(rules, job)
+                    r.hard_filtered, r.filtered_by = not kept, failures
+                    r._delta = delta  # type: ignore[attr-defined]
+                    r.reasons = [x for x in r.reasons if not _is_soft_hit(x)] + hits
                 if item.get("profile") in r.profile_scores:
                     r.profile_id = item["profile"]
                     r.cv_id = next((p.get("cv_id") for p in active if p["id"] == r.profile_id and p.get("cv_id")),
                                    None) or DEFAULT_CV_GROUPS.get(r.profile_id)
-                r.reasons = [str(x) for x in item.get("reasons", [])][:3] + [x for x in r.reasons if "(" in x and x.endswith(")")]
+                r.reasons = [str(x) for x in item.get("reasons", [])][:3] + [x for x in r.reasons if _is_soft_hit(x)]
                 r.gaps = [str(x) for x in item.get("gaps", [])][:3]
                 r.llm_used = used
 
     for r in results.values():
+        career_adjust(r)
         r.pre_filter_score = r.score
         r.score = round(max(0.0, min(100.0, r.score + getattr(r, "_delta", 0.0))), 1)
     return list(results.values())
+
+
+def _is_soft_hit(reason: str) -> bool:
+    """Soft-filter hits look like 'Prefer remote (+5)'."""
+    return isinstance(reason, str) and reason.endswith(")") and "(" in reason and reason.split("(")[-1][:1] in "+-"
 
 
 def job_from_row(row: dict) -> Job:
@@ -194,10 +240,12 @@ def reapply_filters(board_rows: list[dict], rules: list[F.Rule]) -> list[dict]:
         if row.get("score") is None:
             continue
         job = job_from_row(row)
+        if job.seniority in (None, "", "unknown") and row.get("level") in LEVELS:
+            job.seniority = row["level"]                     # level the LLM filled in
         kept, delta, failures, hits = F.apply(rules, job)
         pre = row.get("pre_filter_score")
         pre = row["score"] if pre is None else pre
-        reasons = [x for x in (row.get("reasons") or []) if not (x.endswith(")") and "(" in x and x.split("(")[-1][:1] in "+-")]
+        reasons = [x for x in (row.get("reasons") or []) if not _is_soft_hit(x)]
         out.append({"job_id": row["id"], "hard_filtered": not kept, "filtered_by": failures,
                     "score": round(max(0.0, min(100.0, pre + delta)), 1), "pre_filter_score": pre,
                     "reasons": reasons + hits})
