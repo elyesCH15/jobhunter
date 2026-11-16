@@ -19,6 +19,7 @@ CONFLICT_KEYS = {"search_profiles": "id", "filters": "id", "sources": "id", "cvs
                  "events": "id", "llm_usage": "id", "llm_cache": "key", "jobs_raw": "source_id,external_id",
                  "cv_versions": "id"}
 OPTIONAL_TABLES = {"cv_versions"}     # added by db/migrations/003_cv_versions.sql
+MAX_PAGE = 1000                       # Supabase's default PostgREST max-rows per request
 
 
 def now_iso() -> str:
@@ -42,17 +43,33 @@ class SupabaseStore:
         self.s.headers.update({"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"})
 
     # ---- low level ----
-    def _get(self, table: str, params: dict | None = None, page: int = 1000) -> list[dict]:
-        out, offset = [], 0
-        while True:
-            r = self.s.get(f"{self.url}/{table}", params=params or {},
-                           headers={"Range-Unit": "items", "Range": f"{offset}-{offset + page - 1}"}, timeout=60)
+    def _get(self, table: str, params: dict | None = None, page: int = MAX_PAGE) -> list[dict]:
+        """GET every matching row, paginating with limit/offset query params.
+
+        A caller-supplied params["limit"] is a cap on the total number of rows returned (across pages),
+        not a page size. Pages are at most MAX_PAGE rows (Supabase's default max-rows), and paging stops
+        when a page comes back short. A 416 (offset past the end) is treated as "no more rows".
+        (The old version sent a Range header alongside `limit`; once a table outgrew the limit, the next
+        Range fell outside the limit window and PostgREST answered 416 Range Not Satisfiable.)"""
+        base = dict(params or {})
+        cap = base.pop("limit", None)
+        base.pop("offset", None)
+        cap = int(cap) if cap is not None else None
+        page = max(1, min(int(page), MAX_PAGE))
+        out: list[dict] = []
+        while cap is None or len(out) < cap:
+            want = page if cap is None else min(page, cap - len(out))
+            offset = len(out)
+            r = self.s.get(f"{self.url}/{table}", params={**base, "limit": str(want), "offset": str(offset)},
+                           timeout=60)
+            if r.status_code == 416:
+                break
             r.raise_for_status()
             rows = r.json()
-            out.extend(rows)
-            if len(rows) < page:
-                return out
-            offset += page
+            out.extend(rows[:want])
+            if len(rows) < want:
+                break
+        return out
 
     def _upsert(self, table: str, rows: list[dict], ignore_duplicates: bool = False, chunk: int = 500):
         if not rows:
@@ -88,7 +105,9 @@ class SupabaseStore:
     # ---- jobs ----
     def recent_jobs_index(self, days: int = 60) -> list[dict]:
         since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-        return self._get("jobs", {"select": "id,title,company,location", "last_seen_at": f"gte.{since}"})
+        # explicit order so offset pagination is stable once the index spans several pages
+        return self._get("jobs", {"select": "id,title,company,location", "last_seen_at": f"gte.{since}",
+                                  "order": "id.asc"})
 
     def upsert_jobs(self, rows): self._upsert("jobs", rows)
     def add_job_sources(self, rows): self._upsert("job_sources", rows)
