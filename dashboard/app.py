@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jh import filters as F  # noqa: E402
 from jh.config import filter_id, load_config  # noqa: E402
 from jh.env import clean, env  # noqa: E402
+from jh.internships import LABELS as INTERN_LABELS, load_rules as load_intern_rules  # noqa: E402
 from jh.score import reapply_filters  # noqa: E402
 from jh.store import MemoryStore, SupabaseStore, now_iso  # noqa: E402
 from cv_editor import page_cv_editor  # noqa: E402
@@ -48,6 +49,10 @@ html, body, [class*="css"], .stMarkdown, button, input, textarea { font-family: 
 .jh-gap { background: #F6EBDD; color: #7A3F08; }
 .jh-drop { background: #F1E4E4; color: #7A2424; }
 .jh-junior { background: #D7F0DF; color: #14592F; font-weight: 600; }
+.jh-intern-ok { background: #D7F0DF; color: #14592F; font-weight: 600; }
+.jh-intern-cond { background: #E6EFED; color: #1D4A45; font-weight: 600; }
+.jh-intern-student { background: #F1E4E4; color: #7A2424; font-weight: 600; }
+.jh-intern-unknown { background: #ECEEEE; color: #55615F; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -57,8 +62,11 @@ STATUS_LABEL = {"new": "To triage", "shortlisted": "Maybe later", "approved": "A
                 "pack_ready": "Pack ready", "form_filled": "Form filled", "submitted": "Submitted",
                 "interview": "Interview", "offer": "Offer", "rejected": "Rejected by company", "dismissed": "Dismissed"}
 FIELDS = ["text", "title", "description", "company", "country", "region", "remote", "contract", "seniority",
-          "language", "salary_min", "source"]
+          "language", "salary_min", "source", "intern_eligibility"]
 JUNIOR_LEVELS = ("entry", "junior")
+INTERN_OPEN = ("graduate_ok", "graduate_ok_conditions")
+INTERN_CLASS = {"graduate_ok": "jh-intern-ok", "graduate_ok_conditions": "jh-intern-cond",
+                "student_only": "jh-intern-student", "unknown": "jh-intern-unknown"}
 OPERATORS = ["contains", "not_contains", "equals", "not_equals", "in", "not_in", "gte", "lte"]
 
 
@@ -112,6 +120,7 @@ def demo_store():
     cfg.read_yaml = real
     # a few jobs further down the pipeline, so the CV editor has targets
     top = sorted(store.board(), key=lambda r: r.get("score") or 0, reverse=True)
+    top = [r for r in top if not r.get("hard_filtered")]
     for row, status in zip(top, ["approved", "researched", "pack_ready"]):
         store.set_status(row["id"], status)
     return store
@@ -124,9 +133,10 @@ def load_board() -> pd.DataFrame:
     if df.empty:
         return df
     for col in ("score", "first_seen_at", "posted_at", "hard_filtered", "profile_id", "cv_id", "reasons", "gaps",
-                "filtered_by", "status", "notes", "region", "contract", "seniority", "language", "remote", "level"):
+                "filtered_by", "status", "notes", "region", "contract", "seniority", "language", "remote", "level",
+                "country", "intern_eligibility", "intern_reason"):
         if col not in df:
-            df[col] = None                 # older databases (before migration 002) have no `level`
+            df[col] = None                 # older databases (before migrations 002 / 004) lack `level` / `intern_*`
     df["lvl"] = df["level"].where(df["level"].notna() & (df["level"] != ""), df["seniority"]).fillna("unknown")
     df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0)
     df["hard_filtered"] = df["hard_filtered"].fillna(False).astype(bool)
@@ -140,6 +150,34 @@ def load_board() -> pd.DataFrame:
 def load_cfg():
     profiles, global_exclude, filters, sources = load_config(get_store())
     return profiles, global_exclude, filters
+
+
+def intern_rules() -> dict:
+    """config/internship_rules.yaml from the deployed repo (re-read on every rerun — it's tiny)."""
+    load_intern_rules.cache_clear()
+    return load_intern_rules()
+
+
+def text_or_none(v):
+    return None if v is None or (isinstance(v, float) and pd.isna(v)) or v == "" else str(v)
+
+
+def intern_chip(row) -> tuple[str, str | None]:
+    """(chip html, caption markdown or None) for an internship; ("", None) for other jobs."""
+    elig = text_or_none(getattr(row, "intern_eligibility", None))
+    if row.contract != "internship" or elig not in INTERN_LABELS:
+        return "", None
+    reason = text_or_none(getattr(row, "intern_reason", None)) or ""
+    country = text_or_none(getattr(row, "country", None))
+    rule = intern_rules()["countries"].get((country or "").lower()) or {}
+    tip = "; ".join(x for x in [reason, rule.get("note") if elig == "graduate_ok_conditions" else None] if x)
+    tip = tip.replace('"', "'").replace("<", "").replace(">", "")
+    html = f'<span class="jh-chip {INTERN_CLASS[elig]}" title="{tip}">{INTERN_LABELS[elig]}</span>'
+    caption = None
+    if elig == "graduate_ok_conditions" and rule.get("note"):
+        src = f" — [official source]({rule['source']})" if rule.get("source") else ""
+        caption = f"Internship rule ({country.title()}): {rule['note']}{src} · a guide, not legal advice"
+    return html, caption
 
 
 def refresh():
@@ -192,6 +230,8 @@ def job_card(row, profile_names: dict, actions: bool = True):
             chips = [profile_names.get(row.profile_id, row.profile_id or "no profile"),
                      f"CV: {row.cv_id or 'n/a'}", row.contract, None if junior else row.lvl, row.remote, row.region, row.language]
             html = f'<span class="jh-chip jh-junior">Junior-friendly · {row.lvl}</span>' if junior else ""
+            ichip, icaption = intern_chip(row)
+            html += ichip
             html += "".join(f'<span class="jh-chip">{c}</span>' for c in chips if c and c != "unknown")
             html += "".join(f'<span class="jh-chip jh-gap">{g}</span>' for g in as_list(row.gaps)[:3])
             html += "".join(f'<span class="jh-chip jh-drop">filtered: {f}</span>' for f in as_list(row.filtered_by))
@@ -199,6 +239,8 @@ def job_card(row, profile_names: dict, actions: bool = True):
             reasons = as_list(row.reasons)
             if reasons:
                 st.caption("Why: " + "; ".join(str(r) for r in reasons[:5]))
+            if icaption:
+                st.caption(icaption)
             with st.expander("Description"):
                 st.write((row.description or "")[:4000])
             if actions:
@@ -224,6 +266,9 @@ def page_triage(df: pd.DataFrame, profiles: list[dict]):
         q = st.text_input("Search title, company, text")
         junior_only = st.toggle("Junior-friendly only", False, help="Entry-level and junior roles (0–2 years)")
         with_unknown = st.checkbox("Include unknown level", True, disabled=not junior_only)
+        intern_open = st.checkbox("Internships open to graduates only", False,
+                                  help="Only internships a graduate can take: open to graduates, or open with "
+                                       "permit conditions (config/internship_rules.yaml)")
         show_filtered = st.toggle("Include filtered-out jobs", False)
 
     v = df[df["status"] == "new"]
@@ -237,6 +282,8 @@ def page_triage(df: pd.DataFrame, profiles: list[dict]):
         v = v[v["contract"].isin(contract)]
     if junior_only:
         v = v[v["lvl"].isin(JUNIOR_LEVELS + (("unknown",) if with_unknown else ()))]
+    if intern_open:
+        v = v[(v["contract"] == "internship") & v["intern_eligibility"].isin(INTERN_OPEN)]
     v = v[v["score"] >= min_score]
     v = v[v["seen"] >= pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)]
     if q:
@@ -369,6 +416,21 @@ def page_filters(df: pd.DataFrame):
                     refresh(); st.toast("Filter added."); st.rerun()
                 except ValueError:
                     st.error("For ≥ / ≤ the value must be a number.")
+
+    with st.expander("Internship rules"):
+        st.caption("Can a graduate (no longer enrolled) take an internship there? Read from "
+                   "config/internship_rules.yaml — edit it in the repo, then run Actions → “Rescore all jobs”. "
+                   "Wording in the posting (e.g. “convention de stage”, “recent graduates welcome”) beats the "
+                   "country rule. A guide, not legal advice: check every permit with the official source.")
+        ir = intern_rules()
+        table = pd.DataFrame([{"country": c, "status": r.get("status"), "note": r.get("note"),
+                               "source": r.get("source") or None, "verified": r.get("verified")}
+                              for c, r in sorted(ir["countries"].items())]
+                             + [{"country": "(other / remote)", "status": ir["default"].get("status"),
+                                 "note": ir["default"].get("note"), "source": None, "verified": None}])
+        st.dataframe(table, hide_index=True, width="stretch",
+                     column_config={"source": st.column_config.LinkColumn("Source"),
+                                    "note": st.column_config.TextColumn("Note", width="large")})
 
     st.divider()
     if st.button("Re-apply to all jobs"):

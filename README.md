@@ -18,6 +18,7 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
 |---|---|
 | Sources: Jooble, Remotive, RemoteOK, Arbeitnow, Greenhouse / Lever / Ashby company boards (Adzuna: off, paid) | `jh/collectors/`, `config/sources.yaml` |
 | Classification: language, country, region, remote, contract, seniority | `jh/classify.py` |
+| Internships: can a graduate take it? (country rules + posting wording) | `jh/internships.py`, `config/internship_rules.yaml` — see [Internships after graduation](#internships-after-graduation) |
 | Dedupe across sites and across runs | `jh/dedupe.py` |
 | Scoring per profile + CV routing + free-LLM refinement with fallback | `jh/score.py`, `jh/llm.py` |
 | Rescore every stored job after a scoring change | `jh/rescore.py`, `.github/workflows/rescore.yml` |
@@ -39,7 +40,8 @@ GitHub Actions (daily) ── snapshots/*.jsonl ◄────────┘
    Already have a database from an earlier version? Run the files in `db/migrations/` in order instead
    (`001` makes the `job_board` view respect Row Level Security; `002` adds the `llm_fit` and `level`
    score columns for junior-first scoring — see [Updating to junior-first scoring](#updating-to-junior-first-scoring);
-   `003` adds the `cv_versions` table for the [CV editor](#cv-editor)).
+   `003` adds the `cv_versions` table for the [CV editor](#cv-editor); `004` adds the internship eligibility
+   columns — see [Internships after graduation](#internships-after-graduation)).
 3. **Project Settings → API**: copy the **Project URL** and the **service_role** key (not the anon key).
    The service key bypasses security — it only ever goes in GitHub Secrets, Streamlit Secrets and your local `.env`.
 
@@ -78,6 +80,7 @@ Then run **Snapshot database to Git** once to check the history commit works.
 - **Triage**: newest high-score jobs first, with how long ago they were posted. *Approve*, *Maybe later* or *Dismiss*.
   Entry-level and junior jobs carry a green **Junior-friendly** chip; the sidebar toggle *Junior-friendly only*
   hides everything else (tick *Include unknown level* to keep jobs whose level couldn't be told).
+  Internships carry an *Intern: …* chip; tick *Internships open to graduates only* to see just the ones you can take.
 - **Tracker**: everything past triage; change status and add notes as applications move.
 - **Filters**: add, pause or delete rules; *Re-apply to all jobs* updates jobs already found.
 - **Profiles**: edit titles, keywords, exclusions, queries, priority, or pause a profile.
@@ -208,6 +211,74 @@ adjustment, `pre_filter_score` = after blend + adjustment, `score` = final.
    Locally: `python -m jh.rescore` (or `python scripts/rescore.py`), add `--dry-run` to save nothing.
 
 Run **Rescore all jobs** again whenever you change the scoring code or edit profiles heavily.
+
+## Internships after graduation
+You graduated in 2026, so an internship is only useful where a graduate (no longer enrolled) can legally take
+one. Every job with contract = *internship* gets an **intern eligibility** (`jh/internships.py`); other jobs
+(full-time, PhD…) get none and are never affected.
+
+1. **Wording in the posting wins** (title + description, EN / FR / DE, accents and case ignored):
+   - open to graduates → `graduate_ok`: *recent graduate(s)*, *recently graduated*, *graduated within*,
+     *graduate internship*, *post-graduate internship*, *jeune diplômé*, *diplômé depuis*, *Absolvent*,
+     *nach dem Studium*, *freiwilliges Praktikum*, *SIVP*, *traineeship*, *graduate programme/program*,
+     *young professional*;
+   - students only → `student_only`: *convention de stage*, *currently enrolled*, *must be enrolled*,
+     *enrolled in a*, *current student*, *currently pursuing*, *pursuing a degree*, *as part of your studies*,
+     *in your final year*, *stage de fin d'études*, *étudiant en*, *Pflichtpraktikum*, *immatrikuliert*,
+     *eingeschrieben*, *returning to school*, *Werkstudent* / *working student*.
+   When both appear (e.g. *Pflicht- oder freiwilliges Praktikum*), the graduate wording wins.
+2. **Otherwise the country rule** from `config/internship_rules.yaml`; no country (remote, not detected) → `unknown`.
+
+The reason is saved too (`posting: 'convention de stage'`, `country rule: germany`) and shown as the chip's tooltip.
+
+| Country | Status | Rule (short) |
+|---|---|---|
+| France | students only | a *stage* needs a *convention de stage* signed by a school during a current academic year |
+| Germany | with conditions | third-country nationals: degree-related internship ≤ 6 months, graduated ≤ 2 years ago, internship agreement |
+| Spain | with conditions | Directive 2016/801 trainee permit: degree within 2 years, ≤ 6 months, host files the application |
+| Netherlands | with conditions | trainee single permit (GVVA), ≤ 1 year, traineeship agreement — check IND conditions |
+| Belgium | with conditions | Directive 2016/801 trainee route, graduates within 2 years — verify |
+| Switzerland | with conditions | Switzerland–Tunisia *stagiaires* agreement: age 18–35, field you trained for, ≤ 18 months, local salary, employer applies too |
+| Tunisia | open to graduates | local internships incl. SIVP-type graduate internships — verify per offer |
+| Italy, Portugal, Austria, Poland, Sweden, Luxembourg, Finland, Czechia, Greece, Hungary, Romania | with conditions | Directive 2016/801 trainee route usually allows graduates within 2 years — check national rules |
+| Ireland, Denmark | unclear | not bound by Directive 2016/801 |
+| United Kingdom, United States, Canada, UAE, other / remote | unclear | not researched |
+
+Each entry has a note, an official source link and `verified: "2026-11"`; the dashboard shows the whole table
+(Filters → *Internship rules*) and the note + source under every *with conditions* card.
+
+**Filters** (in `config/filters.yaml`, editable on the Filters page; field `intern_eligibility`):
+- *Internships: drop student-only* (hard) — hides internships marked `student_only`, nothing else.
+- *Internships open to graduates* (soft, +5) — `graduate_ok`. *With conditions* gets 0.
+- *Internships with unclear eligibility* (soft, −5) — `unknown`.
+
+**Profiles**: *General ML / AI engineer* now accepts internships, with the queries *machine learning internship*,
+*AI engineer intern*, *graduate internship machine learning*, *Praktikum Machine Learning*, *stage data science*;
+*Research & scientific computing* gets *research internship deep learning*. Queries rotate, so requests per
+run don't grow. The AI scorer is told you graduated in 2026 and flags *students only* in gaps when a posting
+requires current enrolment.
+
+**Existing databases get the new filters and profile items automatically**: the database is the source of
+truth once seeded, so `jh/config.py` has a one-time step (`CONFIG_SYNCS`) that runs on the next scan or
+dashboard load. It inserts each new filter only if no filter has that name, appends missing contracts /
+queries to existing profiles, and never changes or removes anything. It's recorded as a `config_sync` event,
+so it runs once: a filter or query you delete afterwards stays deleted.
+
+**Updating an existing database**
+1. Supabase → **SQL Editor** → paste `db/migrations/004_intern_eligibility.sql` → **Run** (adds
+   `jobs.intern_eligibility` / `jobs.intern_reason` and recreates the `job_board` view with them; safe to re-run).
+   Scans keep working before you do this — the columns are skipped with a warning in the log, though the
+   filters still use the eligibility when scoring.
+2. Push the new code.
+3. **Actions → Rescore all jobs → Run workflow** (*Rules only* is fine) so internships already stored get classified.
+
+**Editing the rules**: open `config/internship_rules.yaml`, change a country's `status` / `note` / `source`
+(or add a country — use the lowercase name the classifier detects, e.g. `united kingdom`), commit, push, then
+run **Rescore all jobs**. New scans use the file straight away; the dashboard reads it from the deployed repo.
+
+> **A guide, not legal advice.** Immigration and internship rules change and depend on your nationality, age,
+> the host and the offer. Before accepting any internship, check the permit with the official source linked
+> in the table (and with the employer).
 
 ## Adding company boards (hidden market)
 Company boards are listed in `config/sources.yaml` under `company_boards`, one slug per line:

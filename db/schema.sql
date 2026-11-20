@@ -23,7 +23,7 @@ create table if not exists filters (
   id            uuid primary key default gen_random_uuid(),
   name          text not null,
   kind          text not null check (kind in ('hard','soft')),
-  field         text not null,                  -- title | description | text | company | country | region | remote | contract | seniority | language | salary_min | source
+  field         text not null,                  -- title | description | text | company | country | region | remote | contract | seniority | language | salary_min | source | intern_eligibility
   operator      text not null,                  -- contains | not_contains | equals | not_equals | in | not_in | gte | lte
   value         jsonb not null,
   weight        real not null default 0,        -- soft filters: score delta (+/-)
@@ -85,6 +85,8 @@ create table if not exists jobs (
   apply_url     text,
   description   text,
   tags          jsonb not null default '[]',
+  intern_eligibility text,                      -- internships only: graduate_ok | graduate_ok_conditions | student_only | unknown
+  intern_reason text,                           -- why (posting phrase or country rule, config/internship_rules.yaml)
   first_seen_at timestamptz not null default now(),
   last_seen_at  timestamptz not null default now()
 );

@@ -4,7 +4,10 @@
 # kind: hard → job is dropped (kept in DB, hidden, counted)
 #       soft → score adjusted by `weight` (e.g. +8 or -10)
 # field: title | description | text (title+description) | company | country | region |
-#        remote | contract | seniority | language | salary_min | source
+#        remote | contract | seniority | language | salary_min | source | intern_eligibility
+# intern_eligibility is set on internships only (graduate_ok | graduate_ok_conditions | student_only |
+#   unknown, see config/internship_rules.yaml); other jobs have none, so they pass these rules untouched.
+# Filters added here after your database was seeded reach it through jh/config.py CONFIG_SYNCS.
 # operator: contains | not_contains | equals | not_equals | in | not_in | gte | lte
 
 filters:
@@ -46,3 +49,24 @@ filters:
     operator: contains
     value: [protein, alphafold, esm]
     weight: 6
+
+  # internships: the candidate has graduated, so only internships open to graduates are useful
+  - name: "Internships: drop student-only"
+    kind: hard
+    field: intern_eligibility
+    operator: not_equals
+    value: student_only
+
+  - name: Internships open to graduates
+    kind: soft
+    field: intern_eligibility
+    operator: equals
+    value: graduate_ok
+    weight: 5
+
+  - name: Internships with unclear eligibility
+    kind: soft
+    field: intern_eligibility
+    operator: equals
+    value: unknown
+    weight: -5

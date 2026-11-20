@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from .internships import apply_eligibility
 from .models import Job, norm
 
 # ---------- language ----------
@@ -53,6 +54,11 @@ COUNTRY_ALIASES = {
     "sweden": ["sweden", "stockholm"],
     "denmark": ["denmark", "copenhagen"],
     "luxembourg": ["luxembourg"],
+    "finland": ["finland", "helsinki"],
+    "czechia": ["czechia", "czech republic", "prague"],
+    "greece": ["greece", "athens"],
+    "hungary": ["hungary", "budapest"],
+    "romania": ["romania", "bucharest"],
     "morocco": ["morocco", "maroc", "casablanca", "rabat"],
     "egypt": ["egypt", "cairo"],
     "uae": ["uae", "united arab emirates", "dubai", "abu dhabi"],
@@ -62,7 +68,8 @@ COUNTRY_ALIASES = {
     "canada": ["canada", "toronto", "montreal", "montréal", "vancouver"],
 }
 EUROPE = {"france", "germany", "united kingdom", "belgium", "netherlands", "switzerland", "spain", "italy",
-          "portugal", "austria", "poland", "ireland", "sweden", "denmark", "luxembourg"}
+          "portugal", "austria", "poland", "ireland", "sweden", "denmark", "luxembourg",
+          "finland", "czechia", "greece", "hungary", "romania"}
 MENA = {"morocco", "egypt", "uae", "saudi arabia", "qatar"}
 NORTH_AMERICA = {"united states", "canada"}
 ISO = {"gb": "united kingdom", "fr": "france", "de": "germany", "nl": "netherlands", "be": "belgium",
@@ -195,4 +202,5 @@ def classify(job: Job) -> Job:
     job.region = region_of(job.country, job.remote, job.location)
     job.contract = classify_contract(job)
     job.seniority = classify_seniority(job)
+    apply_eligibility(job)                       # internships: can a graduate take it?
     return job

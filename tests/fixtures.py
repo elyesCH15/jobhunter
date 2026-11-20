@@ -13,6 +13,17 @@ GREENHOUSE_CRADLE = {"jobs": [
      "updated_at": "2026-10-20T08:00:00Z", "company_name": "Cradle",
      "content": "&lt;p&gt;Senior role. 8+ years of experience building distributed backend systems in Go. "
                 "You will lead the machine learning platform team.&lt;/p&gt;"},
+    # internships: one explicitly open to graduates, one with only the Swiss country rule to go on
+    {"id": 104, "title": "Machine Learning Intern, Protein Design",
+     "location": {"name": "Amsterdam, Netherlands"}, "absolute_url": "https://boards.greenhouse.io/cradle/jobs/104",
+     "updated_at": "2026-10-21T08:00:00Z", "company_name": "Cradle",
+     "content": "&lt;p&gt;6-month internship: fine-tune protein language models with PyTorch. "
+                "Recent graduates welcome (graduated within the last 2 years).&lt;/p&gt;"},
+    {"id": 105, "title": "Research Intern, Structure Prediction",
+     "location": {"name": "Zurich, Switzerland"}, "absolute_url": "https://boards.greenhouse.io/cradle/jobs/105",
+     "updated_at": "2026-10-21T08:00:00Z", "company_name": "Cradle",
+     "content": "&lt;p&gt;Internship on protein structure prediction and machine learning with PyTorch "
+                "on GPU clusters.&lt;/p&gt;"},
     {"id": 103, "title": "Office Manager", "location": {"name": "Amsterdam"},
      "absolute_url": "https://boards.greenhouse.io/cradle/jobs/103", "updated_at": "2026-10-20T08:00:00Z",
      "content": "&lt;p&gt;Run our office and events.&lt;/p&gt;"},

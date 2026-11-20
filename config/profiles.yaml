@@ -1,5 +1,7 @@
 # Search profiles. Edit here (then commit) or in the dashboard — both stay in sync.
 # priority: high = x1.0, medium = x0.85, low = x0.7 (multiplier on the fit score)
+# Once seeded, the database is the source of truth: items added here later reach an existing database
+# only through a one-time step in jh/config.py CONFIG_SYNCS (it appends missing items, never removes).
 
 defaults:
   seniority: [entry, junior, unknown]          # 'unknown' kept: many postings don't say
@@ -51,9 +53,12 @@ profiles:
     keywords: [python, pytorch, tensorflow, llm, rag, transformers, fine-tuning, deployment, docker,
                mlops, nlp, machine learning, deep learning, langchain, hugging face, streamlit]
     exclude: [data entry, bi analyst, power bi developer, frontend, front-end, salesforce]
-    contracts: [full_time, fixed_term, freelance]
+    contracts: [full_time, fixed_term, freelance, internship]
     queries: ["machine learning engineer", "AI engineer", "LLM engineer", "data scientist junior",
-              "NLP engineer", "MLOps engineer"]
+              "NLP engineer", "MLOps engineer",
+              # internships open to graduates (rotation keeps the per-run request count the same)
+              "machine learning internship", "AI engineer intern", "graduate internship machine learning",
+              "Praktikum Machine Learning", "stage data science"]
 
   - id: genai_cv
     name: Generative AI / computer vision
@@ -76,7 +81,8 @@ profiles:
     exclude: [postdoc, postdoctoral, tenure-track, tenure track, professor, lecturer]
     contracts: [internship, phd, fixed_term]
     queries: ["PhD machine learning", "research engineer HPC", "molecular dynamics internship",
-              "scientific computing engineer", "stage M2 machine learning", "thèse apprentissage automatique"]
+              "scientific computing engineer", "stage M2 machine learning", "thèse apprentissage automatique",
+              "research internship deep learning"]
 
   - id: mission_driven
     name: Mission-driven / international orgs

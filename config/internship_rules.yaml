@@ -1,0 +1,108 @@
+# Can a GRADUATE (no longer enrolled) legally take an internship in this country?
+# Used by jh/internships.py for jobs with contract = internship. Edit freely, commit, then run
+# Actions → "Rescore all jobs" so stored internships are classified again (new scans use it at once).
+#
+# status: graduate_ok             → graduates can take internships here
+#         graduate_ok_conditions  → possible for graduates, with permit / agreement conditions (see note)
+#         student_only            → internships need a current student status (e.g. a school agreement)
+#         unknown                 → not researched / no general rule
+# Country keys are the names jh/classify.py detects (lowercase, e.g. "united kingdom").
+# Text in the posting beats the country rule (see the phrase lists in jh/internships.py).
+#
+# A GUIDE, NOT LEGAL ADVICE: rules change and depend on nationality, age and the offer.
+# Check every permit with the official source before accepting an internship.
+
+default:                          # remote jobs, undetected countries and any country not listed
+  status: unknown
+  note: "Country not detected or not researched — check the posting and the host country's rules."
+  source: ""
+
+_eu_trainee: &eu_trainee
+  status: graduate_ok_conditions
+  note: "EU Directive 2016/801 trainee route usually allows graduates within 2 years — check national rules."
+  source: "https://eur-lex.europa.eu/eli/dir/2016/801/oj"
+  verified: "2026-11"
+
+countries:
+  france:
+    status: student_only
+    note: "A stage requires a convention de stage signed by the school during a current academic year; graduates can't sign one."
+    source: "https://www.enseignementsup-recherche.gouv.fr/fr/etudiante-pendant-le-stage-50039"
+    verified: "2026-11"
+  germany:
+    status: graduate_ok_conditions
+    note: "Third-country nationals can get a residence title for a degree-related internship of up to 6 months if they graduated no more than 2 years ago; needs an internship agreement."
+    source: "https://www.bamf.de/EN/Themen/MigrationAufenthalt/ZuwandererDrittstaaten/Arbeit/Sonstige/sonstige-node.html"
+    verified: "2026-11"
+  spain:
+    status: graduate_ok_conditions
+    note: "EU Directive 2016/801 trainee permit: degree obtained within the 2 years before applying, max 6 months, the host files the application."
+    source: "https://home-affairs.ec.europa.eu/policies/migration-and-asylum/eu-immigration-portal/trainee-spain_en"
+    verified: "2026-11"
+  netherlands:
+    status: graduate_ok_conditions
+    note: "Trainee single permit (GVVA) for work experience, up to 1 year, tied to a traineeship agreement — check the IND conditions."
+    source: "https://ind.nl/en/work/working_in_the_Netherlands/Pages/Work-experience-as-trainee-or-apprentice.aspx"
+    verified: "2026-11"
+  belgium:
+    status: graduate_ok_conditions
+    note: "Directive 2016/801 trainee route (transposed): graduates within 2 years — verify."
+    source: "https://dofi.ibz.be/en/themes/third-country-nationals/work/trainees"
+    verified: "2026-11"
+  switzerland:
+    status: graduate_ok_conditions
+    note: "Switzerland–Tunisia young professionals (stagiaires) agreement: age 18–35, completed training, job in the field trained for, up to 18 months, local salary; the employer also applies for a permit."
+    source: "https://www.ejpd.admin.ch/dam/sem/fr/data/auslandaufenthalt/stage/stage-TUN-f.pdf.download.pdf/stage-TUN-f.pdf"
+    verified: "2026-11"
+  tunisia:
+    status: graduate_ok
+    note: "Local internships (incl. SIVP-type graduate internships) are open to graduates — verify per offer."
+    source: ""
+    verified: "2026-11"
+
+  # other EU countries bound by Directive 2016/801
+  italy: *eu_trainee
+  portugal: *eu_trainee
+  austria: *eu_trainee
+  poland: *eu_trainee
+  sweden: *eu_trainee
+  luxembourg: *eu_trainee
+  finland: *eu_trainee
+  czechia: *eu_trainee
+  greece: *eu_trainee
+  hungary: *eu_trainee
+  romania: *eu_trainee
+
+  # EU countries NOT bound by the directive
+  ireland:
+    status: unknown
+    note: "Not bound by Directive 2016/801 — check Irish national rules."
+    source: ""
+    verified: "2026-11"
+  denmark:
+    status: unknown
+    note: "Not bound by Directive 2016/801 — check Danish national rules."
+    source: ""
+    verified: "2026-11"
+
+  # outside the EU: not researched yet
+  united kingdom:
+    status: unknown
+    note: "Not researched — UK internships for non-students usually need a sponsored visa route; check gov.uk."
+    source: ""
+    verified: "2026-11"
+  united states:
+    status: unknown
+    note: "Not researched — check the visa route (e.g. J-1 intern/trainee) with the employer."
+    source: ""
+    verified: "2026-11"
+  canada:
+    status: unknown
+    note: "Not researched — check IRCC work-permit options."
+    source: ""
+    verified: "2026-11"
+  uae:
+    status: unknown
+    note: "Not researched — check with the employer."
+    source: ""
+    verified: "2026-11"

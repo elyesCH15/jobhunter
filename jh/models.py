@@ -57,6 +57,8 @@ class Job:
     seniority: str = "unknown"
     language: str = "other"
     tags: list = field(default_factory=list)
+    intern_eligibility: Optional[str] = None  # internships only — jh/internships.py
+    intern_reason: Optional[str] = None
     canonical_id: Optional[str] = None       # set by dedupe when this matches an existing job
 
     @property
@@ -75,7 +77,7 @@ class Job:
         row = {k: d[k] for k in (
             "title", "company", "location", "country", "region", "remote", "contract", "seniority",
             "language", "salary_min", "salary_max", "salary_currency", "deadline", "posted_at",
-            "url", "apply_url", "description", "tags")}
+            "url", "apply_url", "description", "tags", "intern_eligibility", "intern_reason")}
         row["id"] = self.fingerprint
         row["description"] = (row["description"] or "")[:20000]
         return row

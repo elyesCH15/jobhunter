@@ -22,6 +22,7 @@ from .collectors.base import Http, RelevanceGate
 from .collectors.sources import AGGREGATORS, BOARDS, SkipSource
 from .config import ROOT, load_config
 from .dedupe import dedupe
+from .internships import load_rules
 from .llm import Gateway
 from .score import score_jobs
 from .store import get_store, now_iso
@@ -48,6 +49,7 @@ def run(store=None, http: Http | None = None, gateway: Gateway | None = None, fo
     http = http or Http()
     gateway = gateway if gateway is not None else Gateway(store=store)
     profiles, global_exclude, filter_rows, sources_cfg = load_config(store)
+    load_rules.cache_clear()                     # config/internship_rules.yaml as it is now
     active_profiles = [p for p in profiles if p.get("active", True)]
     rules = [F.Rule.from_dict(r) for r in filter_rows]
     gate = RelevanceGate(active_profiles)

@@ -12,6 +12,7 @@ import requests
 from .env import clean, env
 
 NEW_SCORE_COLUMNS = ("llm_fit", "level")      # added by db/migrations/002_scores_llm_fit_level.sql
+NEW_JOB_COLUMNS = ("intern_eligibility", "intern_reason")   # added by db/migrations/004_intern_eligibility.sql
 TABLES = ["search_profiles", "filters", "sources", "cvs", "jobs", "job_sources", "scores",
           "applications", "events", "llm_usage", "cv_versions"]          # snapshot order (parents first)
 CONFLICT_KEYS = {"search_profiles": "id", "filters": "id", "sources": "id", "cvs": "id", "jobs": "id",
@@ -24,6 +25,11 @@ MAX_PAGE = 1000                       # Supabase's default PostgREST max-rows pe
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _missing_column(err: str, columns: tuple) -> bool:
+    """PostgREST's 'column not in the schema cache' error (PGRST204) for one of these columns."""
+    return "PGRST204" in err and any(c in err for c in columns)
 
 
 def cv_version_row(spec: dict, page_count: Optional[int] = None) -> dict:
@@ -109,7 +115,16 @@ class SupabaseStore:
         return self._get("jobs", {"select": "id,title,company,location", "last_seen_at": f"gte.{since}",
                                   "order": "id.asc"})
 
-    def upsert_jobs(self, rows): self._upsert("jobs", rows)
+    def upsert_jobs(self, rows):
+        try:
+            self._upsert("jobs", rows)
+        except RuntimeError as e:
+            # Database without migration 004: keep scanning, just without the internship columns.
+            if not _missing_column(str(e), NEW_JOB_COLUMNS):
+                raise
+            print("warning: jobs.intern_eligibility / jobs.intern_reason missing — run db/migrations/004_intern_eligibility.sql")
+            self._upsert("jobs", [{k: v for k, v in r.items() if k not in NEW_JOB_COLUMNS} for r in rows])
+
     def add_job_sources(self, rows): self._upsert("job_sources", rows)
     def add_raw(self, rows): self._upsert("jobs_raw", rows, ignore_duplicates=True)
     def upsert_scores(self, rows):
@@ -117,7 +132,7 @@ class SupabaseStore:
             self._upsert("scores", rows)
         except RuntimeError as e:
             # Database without migration 002: keep scanning, just without the new columns.
-            if "PGRST204" not in str(e) or not any(c in str(e) for c in NEW_SCORE_COLUMNS):
+            if not _missing_column(str(e), NEW_SCORE_COLUMNS):
                 raise
             print("warning: scores.llm_fit / scores.level missing — run db/migrations/002_scores_llm_fit_level.sql")
             self._upsert("scores", [{k: v for k, v in r.items() if k not in NEW_SCORE_COLUMNS} for r in rows])
@@ -135,6 +150,28 @@ class SupabaseStore:
                 r = self.s.patch(f"{self.url}/jobs", params={"id": f"in.({','.join(ids[i:i + 100])})"},
                                  json={"seniority": lvl}, headers={"Prefer": "return=minimal"}, timeout=30)
                 r.raise_for_status()
+
+    def set_intern_eligibility(self, values: dict[str, tuple]) -> bool:
+        """{job_id: (intern_eligibility, intern_reason)} — one PATCH per distinct pair. Returns False (and
+        saves nothing) when the columns don't exist yet (migration 004 not run)."""
+        groups: dict[tuple, list[str]] = {}
+        for jid, pair in values.items():
+            groups.setdefault(tuple(pair), []).append(jid)
+        for (elig, reason), ids in groups.items():
+            for i in range(0, len(ids), 100):
+                r = self.s.patch(f"{self.url}/jobs", params={"id": f"in.({','.join(ids[i:i + 100])})"},
+                                 json={"intern_eligibility": elig, "intern_reason": reason},
+                                 headers={"Prefer": "return=minimal"}, timeout=30)
+                if r.status_code >= 400 and _missing_column(r.text, NEW_JOB_COLUMNS):
+                    print("warning: jobs.intern_eligibility missing — run db/migrations/004_intern_eligibility.sql")
+                    return False
+                r.raise_for_status()
+        return True
+
+    def config_syncs_done(self) -> set[str]:
+        """Ids of the one-time config additions already applied (jh/config.py CONFIG_SYNCS)."""
+        rows = self._get("events", {"kind": "eq.config_sync", "select": "detail"})
+        return {str((r.get("detail") or {}).get("id")) for r in rows}
 
     def touch_jobs(self, job_ids: list[str]):
         ts = now_iso()
@@ -251,6 +288,13 @@ class MemoryStore:
         for jid, lvl in levels.items():
             if (jid,) in self.t["jobs"]:
                 self.t["jobs"][(jid,)]["seniority"] = lvl
+    def set_intern_eligibility(self, values):
+        for jid, (elig, reason) in values.items():
+            if (jid,) in self.t["jobs"]:
+                self.t["jobs"][(jid,)].update(intern_eligibility=elig, intern_reason=reason)
+        return True
+    def config_syncs_done(self):
+        return {str((e.get("detail") or {}).get("id")) for e in self.events if e.get("kind") == "config_sync"}
     def touch_jobs(self, job_ids):
         for j in job_ids:
             if (j,) in self.t["jobs"]:

@@ -121,6 +121,11 @@ The MOST important criterion is whether the job is open to a junior / recent gra
 - If the posting requires more than 2 years of experience, or is senior / lead / staff / principal /
   manager level, fit MUST be <= 40, however well the topic matches.
 - Explicit junior, entry-level, graduate, new-grad, intern or PhD roles that match a profile should score high.
+Internships: the candidate graduated in 2026 and is no longer enrolled, so he can only take internships
+open to graduates. If an internship requires current enrolment (enrolled student, convention de stage,
+final-year / end-of-studies internship, Pflichtpraktikum...), put "students only" in gaps.
+"intern_eligibility" (when present) is our rule-based guess: graduate_ok, graduate_ok_conditions
+(permit / agreement conditions), student_only or unknown.
 For EACH job return an object: {{"id": <job id>, "fit": 0-100, "profile": <best profile id>,
 "level": "entry"|"junior"|"mid"|"senior"|"unknown", "reasons": [<=3 short strings],
 "gaps": [<=3 short strings: missing requirements]}}.
@@ -131,8 +136,11 @@ Reply with a JSON array only."""
 
 
 def _llm_payload(job: Job) -> dict:
-    return {"id": job.fingerprint, "title": job.title, "company": job.company, "location": job.location,
-            "contract": job.contract, "seniority": job.seniority, "description": job.description[:2500]}
+    d = {"id": job.fingerprint, "title": job.title, "company": job.company, "location": job.location,
+         "contract": job.contract, "seniority": job.seniority, "description": job.description[:2500]}
+    if job.intern_eligibility:
+        d["intern_eligibility"] = job.intern_eligibility
+    return d
 
 
 def career_adjust(r: ScoreResult) -> None:
@@ -227,7 +235,8 @@ def job_from_row(row: dict) -> Job:
     j = Job(source_id=(row.get("tags") or ["db"])[0], external_id=row["id"], title=row.get("title") or "",
             company=row.get("company") or "", location=row.get("location") or "",
             description=row.get("description") or "", url=row.get("url") or "")
-    for k in ("country", "region", "remote", "contract", "seniority", "language", "salary_min", "salary_max"):
+    for k in ("country", "region", "remote", "contract", "seniority", "language", "salary_min", "salary_max",
+              "intern_eligibility", "intern_reason"):
         setattr(j, k, row.get(k) if row.get(k) is not None else getattr(j, k))
     j.canonical_id = row["id"]
     return j
